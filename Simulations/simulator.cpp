@@ -148,6 +148,7 @@ class RDF {
         double upperBound;
         std::vector<double> gr;
         double d0;
+        double Kval;
 
         RDF(int M_, double lowerBound_, double upperBound_, double K_) {
             M = M_;
@@ -159,7 +160,7 @@ class RDF {
             // additionally; we can now define our dr
            
             // our Kval is given by ... the K_ that we passed in to the function
-            double Kval = K_;
+            Kval = K_;
 
             // likewise, if our bins start at 0,
             dr = (upperBound_ - lowerBound_) / (double (M_));
@@ -173,8 +174,8 @@ class RDF {
         void calculateRDF(std::vector<Atom> &atoms, Box &box) {
             double dist;
             int binIdx;
-            for (int i = 0; i < (atoms.size() - 1); i++) {
-                for (int j = i+1; j < atoms.size(); j++) {
+            for (unsigned int i = 0; i < (atoms.size() - 1); i++) {
+                for (unsigned int j = i+1; j < atoms.size(); j++) {
                     dist = box.computeDistance(atoms[i],atoms[j]);
                     // if we are in a distance of interest to the histogram,
                     if (dist <= upperBound && dist>=lowerBound) { 
@@ -276,7 +277,7 @@ int main () {
     //std::cout << thisRNG->uniform() << std::endl;
 
     // our loop over all nu values, to do all the work iteratively
-    for (int i = 0; i < (sizeof(nuValues) / sizeof(*nuValues)); i++ ) {
+    for (unsigned int i = 0; i < (sizeof(nuValues) / sizeof(*nuValues)); i++ ) {
         // set our steps counter equal to zero
         steps = 0;
         // reset our 'accepted', 'total', and 'successRatio' variables for this simulation
@@ -350,7 +351,7 @@ int main () {
 };
 
 void InitializeCoordinates(std::vector<Atom> &atomList) {
-    int numAtoms = atomList.size();
+    //int numAtoms = atomList.size();
     
     // the paper specifies we have a lattice 14x16; with spacing in the 
     // x-direction of 1/14, and spacing in the y direction of 1/16;
@@ -371,6 +372,8 @@ void InitializeCoordinates(std::vector<Atom> &atomList) {
     double ypos = initial_y_pos;
 
     int atomIndex = 0;
+
+    // we specified that there are 16 columns and 14 rows..
     for (int i = 0; i < 16; i++) {
         // alternating rows are offset by x_offset; the first row is not
         if (i%2 == 1) {
@@ -386,7 +389,7 @@ void InitializeCoordinates(std::vector<Atom> &atomList) {
             // increment the positions for the next atom to place in the lattice
             xpos += x_increment;
             
-            // we don't increment y; we are making the lattice row-by-row
+            // we don't increment y here; we are making the lattice row-by-row
 
             // increment the atomIndex
             atomIndex += 1;
@@ -503,7 +506,7 @@ void PrintConfigurationData(std::vector<Atom> &atoms, double nu_, int numSteps) 
     xyzFile << "# Hard sphere simulation of " << numAtoms << " atoms with radius " << hardSphereRadius << std::endl;
     xyzFile << "#\n#\n" << "# format: xpos ypos radius" << std::endl;
 
-    for (int i = 0; i < atoms.size(); i++) {
+    for (unsigned int i = 0; i < atoms.size(); i++) {
         xyzFile << atoms[i].coords[0] << " " << atoms[i].coords[1] << " " << hardSphereRadius << std::endl;
     };
 
