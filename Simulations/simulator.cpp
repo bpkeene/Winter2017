@@ -59,7 +59,7 @@ class Atom {
 
 };
 
-// our box class; holds the box dimensions and implements pbc
+// our simdata class; holds the box dimensions and implements pbc
 class Box {
     public:
         double x_dim;
@@ -68,9 +68,7 @@ class Box {
         double xpos;
         double ypos;
 
-
         double dx, dy, d1,d2;
-
 
         Box(double x_dim_, double y_dim_) {
             x_dim = x_dim_;
@@ -219,7 +217,8 @@ class RDF {
 // function declarations 
 
 // Initialize our array of atoms, specifying their coordinates;
-void InitializeCoordinates(std::vector<Atom> &);
+// we take our atomlist in, our box, and the distance matrix (to populate it)
+void InitializeCoordinates(std::vector<Atom> &, Box &, std::vector<std::vector<double> > &);
 
 // Write a .xyz file of the current configuration;
 // take the list of atoms, our value of nu, and the current step 
@@ -230,15 +229,12 @@ void PrintConfigurationData(std::vector<Atom> &, double, int);
 void MonteCarloTranslate(std::vector<Atom> &, Box &, RanMars *, double, int,RDF *, bool);
 
 // RDF
-//void CalculateRDF(std::vector<Atom> &, Box &);
-// take our RDF data, our value of nu, and the current step
-void PrintRDF(RDF *, double, int);
+// take our RDF data, our value of nu, and the current step, and simulation #
+void PrintRDF(RDF *, double, int, unsigned int);
+
 
 // calculation of the FFT to get the power spectrum
 void calculateFFT(RDF *);
-
-
-
 
 int main () {
     
@@ -249,7 +245,7 @@ int main () {
     int equilibrationSteps = 400000;
 
     // production steps to be run
-    int productionSteps = 20000;
+    int productionSteps = 2000;
 
     // our unit square simulation box
     Box box(1.0, 1.0);
@@ -273,8 +269,15 @@ int main () {
     // initialize our atoms as a vector
     std::vector<Atom> atoms(nAtoms) ;
     
-    // sanity check
-    //std::cout << thisRNG->uniform() << std::endl;
+    // we make an NxN distance matrix
+    // -- since we modify only one atom's position per step, it is inefficient to 
+    //    calculate 0.5 * N^2 distances;
+    //    We instead calculate ~N
+    //    -- this will also rapidly speed up the RDF calculation and eliminate 
+    //    redundancies, /especially/ when a move is rejected and we must compute the 
+    //    /exact/ same RDF
+    
+    std::vector<std::vector<double> > distanceMatrix(nAtoms, std::vector<double>(nAtoms)) ;
 
     // our loop over all nu values, to do all the work iteratively
     for (unsigned int i = 0; i < (sizeof(nuValues) / sizeof(*nuValues)); i++ ) {
@@ -286,8 +289,23 @@ int main () {
         successRatio = 0;
         
         // initialize our atoms on the lattice for this iteration of the nu values
-        InitializeCoordinates(atoms);
-        
+        // here, we also initialize the values stored in our distance matrix
+        // so, to do so, we will need our box, which knows how to apply its PBCs
+        InitializeCoordinates(atoms, box, distanceMatrix);
+
+        /*
+         * Look here for correct syntax of accessing the distance matrix;
+         * note that the [i][j] syntax, i must be greater than j to get a meaningful distance
+        // print the distance from atom 1 to atom 2;
+        // this should be identically 1.0 / 14.0
+        std::cout << "calculated distance atom 0 to atom 1: " << distanceMatrix[0][1] << std::endl;
+        std::cout << "expected value:                       " << 1.0/14.0 << std::endl;
+
+        std::cout << "calculated distance atom 0 to atom 14 " << distanceMatrix[0][14] << std::endl;
+        double expectedDistance0_14 = sqrt( pow( (0.5 / 14), 2.0) + pow( (1.0/16.0), 2.0));
+        std::cout << "expected value:                       " << expectedDistance0_14 << std::endl;
+        */
+
         // set nu equal to nuValues[i]
         nu = nuValues[i];
         // set K equal to KValues[i]
@@ -312,11 +330,11 @@ int main () {
         
         // do a number of Monte Carlo translations for 'equilibrationSteps' number of steps;
         // bool 'false' denoting production or not
-        MonteCarloTranslate(atoms,box,thisRNG,nu,equilibrationSteps,rdfData,false);
+        MonteCarloTranslate(atoms,box,distanceMatrix,thisRNG,nu,equilibrationSteps,rdfData,false);
        
         // do a number of Monte Carlo translations for 'productionSteps' number of steps;
         // bool 'true' denoting production run
-        MonteCarloTranslate(atoms,box,thisRNG,nu,productionSteps,rdfData,true);
+        MonteCarloTranslate(atoms,box,distanceMatrix,thisRNG,nu,productionSteps,rdfData,true);
 
         // make a name for this data file unique to the simulation, specific to the value of nu
         PrintConfigurationData(atoms,nuValues[i],steps);
@@ -324,7 +342,7 @@ int main () {
         // do the same with our rdfData
         // normalize the data first
         rdfData->normalizeRDF(productionSteps);
-        PrintRDF(rdfData, nuValues[i], productionSteps);
+        PrintRDF(rdfData, nuValues[i], productionSteps, i);
         
         // calculate the free energy surface; F(r) = -kT ln (g(r));
         // we will then have F/kT = - ln (g(r))
@@ -341,6 +359,7 @@ int main () {
         rdfData = 0;
         delete rdfData;
         // we have a 'new' declaration in the next loop; so we don't need it here
+        */
     };
     delete thisRNG;
 
@@ -350,7 +369,7 @@ int main () {
 
 };
 
-void InitializeCoordinates(std::vector<Atom> &atomList) {
+void InitializeCoordinates(std::vector<Atom> &atomList, Box &box, std::vector<std::vector<double> > &distances) {
     //int numAtoms = atomList.size();
     
     // the paper specifies we have a lattice 14x16; with spacing in the 
@@ -373,7 +392,7 @@ void InitializeCoordinates(std::vector<Atom> &atomList) {
 
     int atomIndex = 0;
 
-    // we specified that there are 16 columns and 14 rows..
+    // we specified that there are 16 rows and 14 columns..
     for (int i = 0; i < 16; i++) {
         // alternating rows are offset by x_offset; the first row is not
         if (i%2 == 1) {
@@ -397,15 +416,34 @@ void InitializeCoordinates(std::vector<Atom> &atomList) {
         
     }
 
+    // populate distances for all m = [0,N-1], n = [i+1,N];
+    // deliberately set all other indices to 0.0
+    for (unsigned int m = 0; m < distances[0].size(); m++) {
+        for (unsigned int n = 0; n < distances[0].size(); n++) {
+            // if j <= i, set to zero; else compute the distance
+            // -- we don't care about copy data that is redundant;
+            // additionally, a particle is always distance 0.0 from itself
+            if (n <= m) {
+                distances[m][n] = 0.0;
+            } else {
+                distances[m][n] = box.computeDistance(atomList[m],atomList[n]);
+            };
+        };
+    };
+
 };
 
-void MonteCarloTranslate(std::vector<Atom> &atomList, Box &thisBox, RanMars *prng, double nu_, int steps_,RDF *rdf, bool production) {
+void MonteCarloTranslate(std::vector<Atom> &atomList, Box &thisBox, std::vector<std::vector<double> > &distanceMatrix,
+                         RanMars *prng, double nu_, int steps_,RDF *rdf, bool production) {
     // create a vector with which to hold a list of coordinates, in the event that a move is rejected;
     // initialize it to zero
     std::vector<double> tempCoords = std::vector<double> (2, 0.0);
 
     // get the size of the atom list
     int nAtoms = atomList.size();
+
+    // create a vector with which to hold a /vector/ of length N of old coordinates for some atom i between all other atoms j
+    std::vector<double> temp_dist_ij = std::vector<double (nAtoms, 0.0);
 
     // our number of atoms for indexing, since c++ is base 0
     int nAtomsIdx = nAtoms - 1;
@@ -512,14 +550,16 @@ void PrintConfigurationData(std::vector<Atom> &atoms, double nu_, int numSteps) 
 
 };
 
-// takes the rdf, the value of nu, and the number of steps that we have taken
-void PrintRDF(RDF *rdfData,  double nu_, int numSteps) {
+// takes the rdf, the value of nu, and the number of steps that we have taken;
+// and also, the simulation iteration (for when we do duplicate nu/K values
+// to reproduce the original paper
+void PrintRDF(RDF *rdfData,  double nu_, int numSteps, unsigned int simIteration) {
 
     std::string rdfFileName = "";
     std::ostringstream stringStream;
     stringStream.flush();
     stringStream.str("");
-    stringStream << "Nu_" << nu_ << "_step_" << numSteps << ".rdf";
+    stringStream << "Nu_" << nu_ << "_step_" << numSteps << "sim" << simIteration << ".rdf";
 
     rdfFileName = stringStream.str();
     std::ofstream rdfFile(rdfFileName.c_str(), std::ios::out);
