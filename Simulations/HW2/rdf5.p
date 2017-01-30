@@ -9,5 +9,5 @@ set title "Radial Distribution Function, nu = 5"
 set xlabel "Distance (r/d0)"
 set ylabel "g(r)"
 set size ratio 1
-plot "Nu_5_step_20000.rdf" with lines;
+plot "Nu_5_step_4000000sim0.rdf" with lines;
 

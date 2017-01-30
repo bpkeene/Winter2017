@@ -10,7 +10,7 @@ set ylabel "Y position"
 set xr [0.0:1.0]
 set yr [0.0:1.0]
 set size ratio 1.0
-plot "Nu_5_step_0.xyz" w circles ;
+plot "Nu_5_step_200000.xyz" w circles ;
 
 
 

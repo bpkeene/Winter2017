@@ -10,7 +10,7 @@
 #include "stdlib.h"
 #include <vector>
 #include <fenv.h> 
-#include <fftw3.h>
+//#include <fftw3.h>
 
 
 // global variable declarations
@@ -144,9 +144,18 @@ class RDF {
         double dr;
         double lowerBound;
         double upperBound;
-        std::vector<double> gr;
         double d0;
+
+        // our cumulative histogram
+        std::vector<double> gr;
         double Kval;
+
+        // a picture of our RDF at one timestep
+        std::vector<double> snapshot;
+
+        // our single atom gr modifications of snapshot
+        std::vector<double> pre_move_ij;
+        std::vector<double> post_move_ij;
 
         RDF(int M_, double lowerBound_, double upperBound_, double K_) {
             M = M_;
@@ -156,37 +165,76 @@ class RDF {
             // M_ number of bins initialized to zero
             gr = std::vector<double> (M_,0.0);
             // additionally; we can now define our dr
-           
+         
+            // initialize our snapshot;
+            snapshot = std::vector<double> (M_, 0.0);
+            // also, initialize our temporary histograms that will be used to update snapshot
+            pre_move_ij = std::vector<double> (M_, 0.0);
+            post_move_ij = std::vector<double> (M_, 0.0);
+
             // our Kval is given by ... the K_ that we passed in to the function
             Kval = K_;
+            
+            d0 = upperBound / Kval;
 
             // likewise, if our bins start at 0,
             dr = (upperBound_ - lowerBound_) / (double (M_));
 
-            // assume upperbound is of the form (K * d0); then d0 is upperBound / K_;
-            d0 = upperBound_ / K_;
-
-            printf("lowerBound: %f\nupperBound: %f\nnBins: %d\ndr: %f\n",lowerBound,upperBound,M,dr);
         };
 
-        void calculateRDF(std::vector<Atom> &atoms, Box &box) {
+        // populate the initial snapshot; note that we do not need to modify distanceMatrix
+        void initialStep(const std::vector<std::vector<double> > &distanceMatrix) {
             double dist;
             int binIdx;
-            for (unsigned int i = 0; i < (atoms.size() - 1); i++) {
-                for (unsigned int j = i+1; j < atoms.size(); j++) {
-                    dist = box.computeDistance(atoms[i],atoms[j]);
-                    // if we are in a distance of interest to the histogram,
-                    if (dist <= upperBound && dist>=lowerBound) { 
-                        // add a '1' to the proper increment of the histogram
+            for (unsigned int i = 0; i < (distanceMatrix[0].size() - 1); i++) {
+                for (unsigned int j = i+1; j < distanceMatrix[0].size(); j++) {
+                    dist = distanceMatrix[i][j];
+                    if (dist <= upperBound && dist >= lowerBound) {
                         binIdx = lrint(floor( (dist - lowerBound) / dr));
-                        //printf("dist %f given lowerBound %f is put in bin %d\n",dist,lowerBound,binIdx);
-                        gr[binIdx] += 1;
+                        snapshot[binIdx] += 1;
+                    }
+                }
+            }
+        };
 
-                    };
+        void updateSnapshot(std::vector<double> &pre_attempt, std::vector<double> &post_attempt, int idx) {
+            // so, we calculate the vector of pre_move ij, calculate post_move_ij, and send the difference to snapshot
+            
+            // first, send the values contained in pre_move_ij and post_move_ij to zero
+            pre_move_ij = std::vector<double> (M, 0.0);
+            post_move_ij = std::vector<double> (M, 0.0);
+            double dist;
+            int binIdx;
+
+            for (unsigned int i = 0; i<pre_attempt.size(); i++) {
+                // populate pre_move_ij rdf
+                dist = pre_attempt[i];
+                if (dist <= upperBound && dist >= lowerBound) {
+                    binIdx = lrint(floor( (dist - lowerBound) / dr));
+                    pre_move_ij[binIdx] += 1;
                 };
+
+                // populate post_move_ij rdf
+                dist = post_attempt[i];
+                if (dist <= upperBound && dist >= lowerBound) {
+                    binIdx = lrint(floor( (dist - lowerBound) / dr));
+                    post_move_ij[binIdx] += 1;
+                }
             };
-        }; // closing calculate RDF
-       
+
+            for (unsigned int j = 0; j < snapshot.size(); j++) {
+                snapshot[j] += post_move_ij[j] - pre_move_ij[j];
+            };
+        };
+
+        // add the snapshot of the current system to our cumulative gr histogram
+        // ---> gr is simply a sum of the snapshots;
+        void calculateRDF() {
+            for (unsigned int i = 0; i < gr.size(); i++) {
+                gr[i] += snapshot[i];
+            };
+        }
+
         // we must normalize the RDF at the end of the production run;
         // just operate on the data stored within the class; easier this way
         void normalizeRDF(int nSteps) {
@@ -194,7 +242,7 @@ class RDF {
             double thisRadius = 0.0;
             double normalization;
 
-            for (int i = 0; i < M; i++) {
+            for (unsigned int i = 0; i < gr.size(); i++) {
                 data = gr[i];
 
                 // the radius at which we normalize is the radius denoting the /center/ of the histogram bin
@@ -211,8 +259,14 @@ class RDF {
 
             };
         };
-};
 
+        // since the rdf is already here, may as well calculate the corresponding free energy surface;
+        // and, when we write the rdf to file, we will write the fes data to file as well
+        void calculateFES() {
+            // initialize some class members to put in here so that the data doesn't die with the function
+        
+        };
+};
 
 // function declarations 
 
@@ -226,12 +280,12 @@ void PrintConfigurationData(std::vector<Atom> &, double, int);
 
 // takes a vector of atoms, the box, pointer to our PRNG, number of steps, 
 // and whether or not we are doing a production run
-void MonteCarloTranslate(std::vector<Atom> &, Box &, RanMars *, double, int,RDF *, bool);
+void MonteCarloTranslate(std::vector<Atom> &, Box &, std::vector<std::vector<double> > &, 
+                         RanMars *, double, int,RDF *, bool);
 
 // RDF
 // take our RDF data, our value of nu, and the current step, and simulation #
 void PrintRDF(RDF *, double, int, unsigned int);
-
 
 // calculation of the FFT to get the power spectrum
 void calculateFFT(RDF *);
@@ -242,10 +296,10 @@ int main () {
     int nAtoms = 224;
     
     // equilibration steps to be run
-    int equilibrationSteps = 400000;
+    int equilibrationSteps = 1000000;
 
     // production steps to be run
-    int productionSteps = 2000;
+    int productionSteps = 4000000;
 
     // our unit square simulation box
     Box box(1.0, 1.0);
@@ -358,8 +412,8 @@ int main () {
         // and we do the same thing withour RDF data, after printing it
         rdfData = 0;
         delete rdfData;
-        // we have a 'new' declaration in the next loop; so we don't need it here
-        */
+        // we have a 'new' declaration in the next loop for rdfData; so we don't need it here
+        
     };
     delete thisRNG;
 
@@ -369,8 +423,8 @@ int main () {
 
 };
 
-void InitializeCoordinates(std::vector<Atom> &atomList, Box &box, std::vector<std::vector<double> > &distances) {
-    //int numAtoms = atomList.size();
+void InitializeCoordinates(std::vector<Atom> &atoms, Box &box, std::vector<std::vector<double> > &distances) {
+    //int numAtoms = atoms.size();
     
     // the paper specifies we have a lattice 14x16; with spacing in the 
     // x-direction of 1/14, and spacing in the y direction of 1/16;
@@ -403,7 +457,7 @@ void InitializeCoordinates(std::vector<Atom> &atomList, Box &box, std::vector<st
         // every row is y_increment distance below the other
         ypos = initial_y_pos - (i * y_increment);
         for (int j = 0; j < 14; j++) {
-            atomList[atomIndex].setCoordinates(xpos,ypos);
+            atoms[atomIndex].setCoordinates(xpos,ypos);
             
             // increment the positions for the next atom to place in the lattice
             xpos += x_increment;
@@ -426,85 +480,112 @@ void InitializeCoordinates(std::vector<Atom> &atomList, Box &box, std::vector<st
             if (n <= m) {
                 distances[m][n] = 0.0;
             } else {
-                distances[m][n] = box.computeDistance(atomList[m],atomList[n]);
+                distances[m][n] = box.computeDistance(atoms[m],atoms[n]);
             };
         };
     };
 
 };
 
-void MonteCarloTranslate(std::vector<Atom> &atomList, Box &thisBox, std::vector<std::vector<double> > &distanceMatrix,
+void MonteCarloTranslate(std::vector<Atom> &atoms, Box &thisBox, std::vector<std::vector<double> > &distanceMatrix,
                          RanMars *prng, double nu_, int steps_,RDF *rdf, bool production) {
     // create a vector with which to hold a list of coordinates, in the event that a move is rejected;
     // initialize it to zero
     std::vector<double> tempCoords = std::vector<double> (2, 0.0);
 
     // get the size of the atom list
-    int nAtoms = atomList.size();
+    int nAtoms = atoms.size();
 
     // create a vector with which to hold a /vector/ of length N of old coordinates for some atom i between all other atoms j
-    std::vector<double> temp_dist_ij = std::vector<double (nAtoms, 0.0);
-
+    std::vector<double> pre_attempt_dist_ij = std::vector<double> (nAtoms, 0.0);
+    
+    std::vector<double> post_attempt_dist_ij = std::vector<double> (nAtoms, 0.0);
     // our number of atoms for indexing, since c++ is base 0
     int nAtomsIdx = nAtoms - 1;
-    // sanity check - printf
-    //printf("MonteCarloTranslate says we have %d atoms\n", nAtoms);
     int idx;
     double dist;
 
     // flag denoting whether or not the move we are attempting is valid
     bool validMove;
+    
+    // if we are in production mode, initialize the RDF temporary data
+    // (i.e., get the snapshot of the current configuration's rdf at this step
+    // we will add the proper snapshot to gr at the end of the step (with modification if the move is accepted)
+    if (production) {
+        rdf->initialStep(distanceMatrix);
+    };
 
-
-    // for number of steps 'steps_', attempt a Monte Carlo translate
+    // for number of steps 'steps_', attempt a Monte Carlo translation move
     for (int i = 0; i < steps_; i++) {
         validMove = true;
         // randomly select an atom to translate; lrint rounds and casts as integer (from math.h)
-        // we need nAtoms - 1, since prng->uniform goes [0,1) and max index of atomList is nAtoms-1
+        // we need nAtoms - 1, since prng->uniform goes [0,1) and max index of atoms is nAtoms-1
         idx = lrint (prng->uniform() * (nAtomsIdx));
-        //printf("atom id selected for translation: %d\n", idx);
         // store the atom's coordinates in the tempCoords vector, in case the move is rejected
-        tempCoords = atomList[idx].coords;
+        tempCoords = atoms[idx].coords;
         
-        //printf("tempCoords prior to displace of atom %d: %f %f\n",idx,atomList[idx].coords[0],atomList[idx].coords[1]);
+        // ensure that pre_attempt_dist_ij and post_attempt_dist_ij are initialized to 0.0
+        pre_attempt_dist_ij = std::vector<double> (nAtoms, 0.0);
+        post_attempt_dist_ij = std::vector<double> (nAtoms, 0.0);
+
+        // get the previous distances b/w atom idx and all other atoms j;
+        for (int m = 0; m < nAtoms; m++) {
+            if (m < idx) {
+                pre_attempt_dist_ij[m] = distanceMatrix[m][idx];
+            } else if (m > idx) {
+                pre_attempt_dist_ij[m] = distanceMatrix[idx][m];
+            } else {
+                pre_attempt_dist_ij[m] = 0.0;
+            };
+        };
+
         
         // randomly displace the atom
-        thisBox.Translate(atomList[idx], alpha, prng);
+        thisBox.Translate(atoms[idx], alpha, prng);
        
-        //printf("coords after displacement of    atom %d: %f %f\n",idx,atomList[idx].coords[0],atomList[idx].coords[1]);
-
         // increment the total number of steps taken in simulation
         total += 1.0;
 
-        //thisBox.Translate(atomList[idx],alpha);
+        //thisBox.Translate(atoms[idx],alpha);
         
         // accept or reject the move
         // essentially, reject if the distance is less than one diameter
         for (int j = 0; j < nAtoms; j++) {
             if (j != idx) {
-                dist = thisBox.computeDistance(atomList[idx],atomList[j]);
-                if (dist < atomList[idx].diameter) {
+                dist = thisBox.computeDistance(atoms[idx],atoms[j]);
+                post_attempt_dist_ij[j] = dist;
+                if (dist < atoms[idx].diameter) {
                     validMove = false;
+                    // also, we can exit the for loop
+                    break;
                 };
+            } else {
+                post_attempt_dist_ij[j] = 0.0;
             };
         };
 
-        //printf("made it to iteration %d of MonteCarloTranslate!\n", i);
         // if we accept the move, do stuff;
         // otherwise, reset the coordinates of the attempted move
         if (validMove) {
-            //printf("move accepted, atom %d moved %f\n",idx,dist);
-            // increment the counter monitoring 'accepted' moves
+            
+            //update distance matrix; the only values perturbed are those concerning atom idx
+            for (int ii = 0; ii < nAtoms; ii++) {
+                if (ii < idx) {
+                    distanceMatrix[ii][idx] = post_attempt_dist_ij[ii];
+                } else if (ii > idx) {
+                    distanceMatrix[idx][ii] = post_attempt_dist_ij[ii];
+                } else {
+                    distanceMatrix[idx][ii] = 0.0;
+                };
+
+            };
             accepted += 1.0;
+
         } else {
-            //printf("atom %d moved to %f %f rejected\n",idx,atomList[idx].coords[0],atomList[idx].coords[1]);
-            //printf("moving %d     to %f %f\n", idx, tempCoords[0], tempCoords[1]);
             // return to its original position
-            atomList[idx].coords = tempCoords;
-            //printf("atom %d now   at %f %f\n", idx, atomList[idx].coords[0], atomList[idx].coords[1]);
+            atoms[idx].coords = tempCoords;
         };
         successRatio = accepted / total;
-        //printf("Final coords of atom idx given %d moves: %f %f\n", idx, atomList[idx].coords[0],atomList[idx].coords[1]);
 
         if (i%100000 == 0) {
             printf("At step %d; production mode %d\n",i,production);
@@ -512,15 +593,18 @@ void MonteCarloTranslate(std::vector<Atom> &atomList, Box &thisBox, std::vector<
         };
 
         if (production) {
-            rdf->calculateRDF(atomList,thisBox);
-            steps += 1;
-            if (i%1000 == 0 && i!=0) {
-                printf("at step %d of production\n",i);
-                if (i%10000 == 0 && i!=0) {
-                    PrintConfigurationData(atomList,nu_,i);
-                };
-
+            if (validMove) {
+                // we need to update our snapshot of the radial distribution function
+                // pass in the pre-attempt vector of distances, post-attempt, and idx of perturbed atom
+                rdf->updateSnapshot(pre_attempt_dist_ij, post_attempt_dist_ij, idx);
             };
+            //rdf->calculateRDF(atoms,thisBox);
+            rdf->calculateRDF();
+            steps += 1;
+            //if (i%10000 == 0 && i!=0) {
+                //PrintConfigurationData(atoms,nu_,i);
+            //};
+
         };
     };
 };
