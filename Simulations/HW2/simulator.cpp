@@ -1,27 +1,27 @@
 /* a series of include statements */
-#include <math.h>
-#include "random_mars.h"
-#include <stdio.h>
+#include <math.h> /* log & assorted operations */
+#include "random_mars.h" /* our RNG */
+#include <stdio.h> /* std input output */
 #include <string.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include "time.h"
 #include "stdlib.h"
-#include <vector>
+#include <vector> /* vectors (because.) */
 #include <fenv.h> 
-//#include <fftw3.h>
+#include <fftw3.h>
 
 
 // global variable declarations
 double d0; // the excluded zone (a diameter)
 double alpha; // function of d0
 int steps;
-//double nuValues[8] = {2.0,4.0,5.0,5.5 , 6 , 6.25,6.5,7.0};  
-//double KValues[8] = { 1.1,1.3,1.5,1.55,1.6, 1.7 ,1.8,2.0}
+double nuValues[4] = {2.0,5.0, 6.0 , 7.0};  
+double KValues[4] = {5.0, 5.0, 5.0, 5.0};
 // for now, just look at nu = 2
-double nuValues[1] = {5.0};
-double KValues[1] = {6.0};
+//double nuValues[1] = {5.0};
+//double KValues[1] = {5.0};
 double successRatio;
 double accepted;
 double total;
@@ -157,6 +157,13 @@ class RDF {
         std::vector<double> pre_move_ij;
         std::vector<double> post_move_ij;
 
+        // our free energy surface as given by the expression F = -kT ln g(r)
+        std::vector<double> FES;
+        
+        // our power spectrum for the structure factor
+        std::vector<double> SF;
+        std::vector<double> indices;
+
         RDF(int M_, double lowerBound_, double upperBound_, double K_) {
             M = M_;
             lowerBound = lowerBound_;
@@ -263,8 +270,83 @@ class RDF {
         // since the rdf is already here, may as well calculate the corresponding free energy surface;
         // and, when we write the rdf to file, we will write the fes data to file as well
         void calculateFES() {
-            // initialize some class members to put in here so that the data doesn't die with the function
-        
+            // this vector will be the same size as our histogram g(r)
+            FES = std::vector<double> (M, 0.0);
+            for (unsigned int i = 0; i < gr.size(); i++) {
+                // avoid domain errors or pole errors by excluding the zero values in vector gr
+                if (gr[i] > 0.0) {
+                    FES[i] = -1.0 * log (gr[i]);
+                };
+            };
+        };
+
+        void calculateStructureFactor() {
+            int nFrequencies = 500;
+            SF = std::vector<double> (nFrequencies, 0.0);
+            double normalizationFactor = sqrt(1.0 / gr.size());
+            indices = std::vector<double> (nFrequencies, 0.0);
+            /*
+            fftw_complex *in, *out;
+            fftw_plan p;
+            in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * gr.size());
+            out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * gr.size());
+
+            p = fftw_plan_dft_1d(gr.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+            for (unsigned int i = 0; i < gr.size(); i++) {
+                in[i][0] = gr[i];
+                in[i][1] = 0.0;
+            };
+
+            fftw_execute(p);
+
+            for (unsigned int j = 0; j < SF.size(); j++) {
+                indices[j] = (double) j / (double) gr.size();
+                SF[j] = normalizationFactor * ( (out[j][0] * out[j][0]) + (out[j][1]*out[j][1]));
+            };
+
+
+            fftw_destroy_plan(p);
+            fftw_free(in);
+            fftw_free(out);
+            */
+            
+            //indices = std::vector<double> (M, 0.0);
+            // we compute for the number of bins in our RDF
+            double realSum;
+            double imagSum;
+
+            //double jvalLo = 0.01;
+            //double jvalHi = 0.2;
+            //double jval = jvalLo;
+            
+            double binCenter = 0.0;
+            //double nSamples = gr.size();
+
+            double frequency;
+            //double increment = (jvalHi - jvalLo) /  gr.size();
+            for (unsigned int i = 0; i < SF.size(); i++) {
+                // zero our sums
+                realSum = 0.0;
+                imagSum = 0.0;
+                frequency = 0.005 * i;
+                // store the index at which we took this sample
+                indices[i] = frequency;
+
+                // we put the separation distance to which this bin corresponds in the filter
+                binCenter = (lowerBound + 0.5 * dr)/ d0;
+
+                for (unsigned int j = 0; j < gr.size(); j++) {
+                    binCenter += dr/d0;
+                    realSum +=  gr[j]*d0 * cos(2.0*M_PI * binCenter * j * frequency );
+                    imagSum += - gr[j]*d0 * sin(2.0*M_PI * binCenter * j * frequency );
+                };
+                // increment the frequency against which we measure our signal;
+                //jval += increment;
+                // take the complex conjugate, and store it in SF
+                SF[i] = normalizationFactor * ((realSum * realSum) + (imagSum * imagSum));
+            
+            };
+
         };
 };
 
@@ -287,9 +369,6 @@ void MonteCarloTranslate(std::vector<Atom> &, Box &, std::vector<std::vector<dou
 // take our RDF data, our value of nu, and the current step, and simulation #
 void PrintRDF(RDF *, double, int, unsigned int);
 
-// calculation of the FFT to get the power spectrum
-void calculateFFT(RDF *);
-
 int main () {
     
     // number of atoms in our system
@@ -299,7 +378,7 @@ int main () {
     int equilibrationSteps = 1000000;
 
     // production steps to be run
-    int productionSteps = 4000000;
+    int productionSteps = 3000000;
 
     // our unit square simulation box
     Box box(1.0, 1.0);
@@ -311,7 +390,7 @@ int main () {
     double K;
 
     // seed for Marsaglia PRNG
-    int seed = 28622498;
+    int seed = 28027493;
     
     // create the random number generator
     RanMars *thisRNG;
@@ -347,19 +426,6 @@ int main () {
         // so, to do so, we will need our box, which knows how to apply its PBCs
         InitializeCoordinates(atoms, box, distanceMatrix);
 
-        /*
-         * Look here for correct syntax of accessing the distance matrix;
-         * note that the [i][j] syntax, i must be greater than j to get a meaningful distance
-        // print the distance from atom 1 to atom 2;
-        // this should be identically 1.0 / 14.0
-        std::cout << "calculated distance atom 0 to atom 1: " << distanceMatrix[0][1] << std::endl;
-        std::cout << "expected value:                       " << 1.0/14.0 << std::endl;
-
-        std::cout << "calculated distance atom 0 to atom 14 " << distanceMatrix[0][14] << std::endl;
-        double expectedDistance0_14 = sqrt( pow( (0.5 / 14), 2.0) + pow( (1.0/16.0), 2.0));
-        std::cout << "expected value:                       " << expectedDistance0_14 << std::endl;
-        */
-
         // set nu equal to nuValues[i]
         nu = nuValues[i];
         // set K equal to KValues[i]
@@ -380,7 +446,7 @@ int main () {
         
         // initialize our radial distribution function data
         // we will use 500 bins, with lowerBound 0.0 and upperBound 0.45 * boxLength
-        rdfData = new RDF(500,0.0,K*d0, K);
+        rdfData = new RDF(400,0.0,K*d0, K);
         
         // do a number of Monte Carlo translations for 'equilibrationSteps' number of steps;
         // bool 'false' denoting production or not
@@ -396,12 +462,19 @@ int main () {
         // do the same with our rdfData
         // normalize the data first
         rdfData->normalizeRDF(productionSteps);
+        
+        // calculate the free energy surface; F(r) = -kT ln (g(r));
+        // we will then have F/kT = - ln (g(r))
+        rdfData->calculateFES();
+      
+        // calculate the structure factor given our RDF
+        rdfData->calculateStructureFactor();
+
+        // and here, we print the RDF and FES for the given value of nu & simulation #
         PrintRDF(rdfData, nuValues[i], productionSteps, i);
         
         // calculate the free energy surface; F(r) = -kT ln (g(r));
         // we will then have F/kT = - ln (g(r))
-        
-
 
         // make null, delete, and reseed the RNG for the next value of nu
         thisRNG = 0;
@@ -546,8 +619,6 @@ void MonteCarloTranslate(std::vector<Atom> &atoms, Box &thisBox, std::vector<std
         // increment the total number of steps taken in simulation
         total += 1.0;
 
-        //thisBox.Translate(atoms[idx],alpha);
-        
         // accept or reject the move
         // essentially, reject if the distance is less than one diameter
         for (int j = 0; j < nAtoms; j++) {
@@ -598,12 +669,8 @@ void MonteCarloTranslate(std::vector<Atom> &atoms, Box &thisBox, std::vector<std
                 // pass in the pre-attempt vector of distances, post-attempt, and idx of perturbed atom
                 rdf->updateSnapshot(pre_attempt_dist_ij, post_attempt_dist_ij, idx);
             };
-            //rdf->calculateRDF(atoms,thisBox);
             rdf->calculateRDF();
             steps += 1;
-            //if (i%10000 == 0 && i!=0) {
-                //PrintConfigurationData(atoms,nu_,i);
-            //};
 
         };
     };
@@ -639,15 +706,39 @@ void PrintConfigurationData(std::vector<Atom> &atoms, double nu_, int numSteps) 
 // to reproduce the original paper
 void PrintRDF(RDF *rdfData,  double nu_, int numSteps, unsigned int simIteration) {
 
+    // our file in which we write the radial distribution function data
+    // create the file name for our given nu, number of steps, and iteration number
     std::string rdfFileName = "";
     std::ostringstream stringStream;
     stringStream.flush();
     stringStream.str("");
-    stringStream << "Nu_" << nu_ << "_step_" << numSteps << "sim" << simIteration << ".rdf";
+    stringStream << "Nu_" << nu_ << "_step_" << numSteps << "_sim_" << simIteration << ".rdf";
+
+    // our file in which we will write the free energy surface data
+    // create the file name for our given nu, number of steps, and iteration number
+    std::string fesFileName = "";
+    std::ostringstream stringStream2;
+    stringStream2.flush();
+    stringStream2.str("");
+    stringStream2 << "Nu_" << nu_ << "_step_" << numSteps << "_sim_" << simIteration << ".fes";
+
+
+    // our file in which we will write the structure factor data (the power spectrum)
+    // create the file name for the given nu, number of steps, and iteration number
+    std::string sfFileName = "";
+    std::ostringstream stringStream3;
+    stringStream3.flush();
+    stringStream3.str("");
+    stringStream3 << "Nu_" << nu_ << "_step_" << numSteps << "_sim_" << simIteration << ".sf";
 
     rdfFileName = stringStream.str();
     std::ofstream rdfFile(rdfFileName.c_str(), std::ios::out);
 
+    fesFileName = stringStream2.str();
+    std::ofstream fesFile(fesFileName.c_str(), std::ios::out);
+
+    sfFileName = stringStream3.str();
+    std::ofstream sfFile(sfFileName.c_str(), std::ios::out);
     // the number of bins is held in rdfData's member 'M'
     // alternatively, we might get the .size() of rdfData->gr
     int nBins = rdfData->M;
@@ -660,13 +751,32 @@ void PrintRDF(RDF *rdfData,  double nu_, int numSteps, unsigned int simIteration
     // nondimensionalize the binCenter - i.e., divide it by lowerBound (d0) and increment it 
     // by dr/d0
     for (int i = 0; i<nBins; i++) {
-        rdfFile << binCenter << " " << rdfData->gr[i] << std::endl;
-
+        if (binCenter >= 1.0) {
+            rdfFile << binCenter << " " << rdfData->gr[i] << std::endl;
+        };
         // increment the bin by dr
         binCenter += (rdfData->dr / rdfData->d0);
     };
+
+    // reset the bin center
+    binCenter = (rdfData->lowerBound) + (0.5 * rdfData->dr);
+    binCenter /= rdfData->d0;
+    // the free energy only makes sense for binCenter >= 1.0;
+    for (int j = 0; j<nBins; j++) {
+        if (binCenter >= 1.0) {
+            fesFile << binCenter << " " << rdfData->FES[j] << std::endl;
+        };
+        binCenter += (rdfData->dr / rdfData->d0);
+    };
+    
+    // reset the bin center
+    binCenter = (rdfData->lowerBound) + (0.5 * rdfData->dr);
+    binCenter /= rdfData->d0;
+
+    // let's just see what we have here;
+    for (int k = 0; k < nBins; k++) {
+        sfFile << rdfData->indices[k]  << " " << rdfData->SF[k] << std::endl;
+    };
+
 };
-
-
-
 

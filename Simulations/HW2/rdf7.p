@@ -8,5 +8,5 @@ set ytic auto
 set title "Radial Distribution Function, nu = 7"
 set xlabel "Distance"
 set ylabel "g(r)"
-plot "Nu_7_step_10000.rdf" with lines;
+plot "Nu_7_step_3000000_sim_3.rdf" with lines;
 
