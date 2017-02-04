@@ -10,7 +10,7 @@
 #include "stdlib.h"
 #include <vector> /* vectors (because.) */
 #include <fenv.h> 
-#include <fftw3.h>
+//#include <fftw3.h>
 
 
 // global variable declarations
