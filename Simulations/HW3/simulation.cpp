@@ -24,71 +24,13 @@ Simulation::Simulation(int _numberOfAtoms, double _density,
 void Simulation::initializeAtoms() {
     // initialize the atoms on the lattice in the box;
     // what should be the inter-atomic distance?
-    // --- if hard sphere potential, initialize s.t.
 
-    //double increment;
-    //double initial_x_pos, initial_y_pos, initial_z_pos;
-    //double xpos, ypos, zpos;
+    // initialize the vector of atoms
     atoms = std::vector<Atom> (numberOfAtoms);
- 
+
+    // and tell box to place the atoms in the box & compute distances subject to the geometry
     box->initializeAtoms(atoms,distances);
     std::cout << "returned from box->initializeAtoms" << std::endl;
-    /*   
-    // cast number of atoms as double
-    double nAtoms = floor(numberOfAtoms);
-
-    // atoms per length is N^(1/3); put as ceiling, to make 
-    // sure we can fit all the atoms
-    double atomsPerLengthD = ceil(pow(nAtoms, (1.0/3.0))); 
-
-    // get the dimensions of our box
-    std::vector<double> maxDimensions = box->getDim();
-
-
-    // divide x-dim by atoms per length to get the increment
-    // since it is cubic, this increment will be the same in all directions
-    increment = maxDimensions[0] / atomsPerLengthD;
-    int atomsPerLength = lrint(atomsPerLengthD);
-
-    // we evenly distribute the atoms on a cubic lattice;
-    initial_x_pos = 0.0;
-    initial_y_pos = 0.0;
-    initial_z_pos = 0.0;
-
-    xpos = ypos = zpos = 0.0;
-
-    int atomIndex = 0;
-
-    std::cout << "about to initialize the atoms!" << std::endl;
-    for (int i = 0; i < atomsPerLength; i++) {
-        zpos = initial_z_pos + i * increment;
-        for (int j = 0; j < atomsPerLength; j++) {
-            ypos = initial_y_pos + j * increment;
-            xpos = initial_x_pos;
-            for (int k = 0; k < atomsPerLength; k++) {
-                if (atomIndex < numberOfAtoms) {
-                    atoms[atomIndex].setCoordinates(xpos,ypos,zpos);
-                    xpos += increment;
-                    atomIndex++;
-                } else {
-                    break;
-                };
-            };
-        };
-    };
-
-    std::cout << "successfully initialized all atoms!" << std::endl;
-    // we also may as well initialize the matrix containing the distances between all atoms
-    for (unsigned int m = 0; m < distances[0].size(); m++) {
-        for (unsigned int n = 0; n < distances[0].size(); n++) {
-            if (n <= m) {
-                distances[m][n] = 0.0;
-            } else {
-                distances[m][n] = box->computeDistance(atoms[m],atoms[n]);
-            };
-        };
-    };
-    */
 }; 
 
 // our equilibration steps
