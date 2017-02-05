@@ -13,10 +13,21 @@ LFLAGS = -Wall $(DEBUG)
 MonteCarlo : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o MonteCarlo
 
-main.o: main.cpp simulation.h 
+main.o: simulation.h 
 	$(CC) $(CFLAGS) main.cpp
 
-simulation.o: simulation.h simulation.cpp
+simulation.o: simulation.h \
+	atom.h box.h random_mars.h
+	$(CC) $(CFLAGS) simulation.cpp
+
+atom.o: atom.h
+	$(CC) $(CFLAGS) atom.cpp
+
+box.o: box.h atom.h
+	$(CC) $(CFLAGS) box.cpp
+
+random_mars.o: random_mars.h
+	$(CC) $(CFLAGS) random_mars.cpp
 
 
 # these are correct; the ones above are not (necessarily)

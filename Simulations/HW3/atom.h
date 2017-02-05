@@ -1,6 +1,7 @@
 #ifndef ATOM_H
 #define ATOM_H
 
+#include <vector>
 
 class Atom {
     private:
@@ -11,13 +12,13 @@ class Atom {
         std::vector<double> coords;
 
     public:
-        Atom() {};
+        Atom();
         
         // set the LJ parameters
-        void setLJ(double, double);
+        void setLJ(double _sigma, double _epsilon);
         
         // set the coordinates
-        void setCoordinates(double, double, double);
+        void setCoordinates(double _x, double _y, double _z);
 
         // get the coordinates
         std::vector<double> getCoordinates();
