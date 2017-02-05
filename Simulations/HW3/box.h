@@ -16,13 +16,12 @@ class Box {
         std::vector<double> dimensions;
         
     public:
-        // delete the default constructor 
-
+        Box();
         // our constructor
         Box(int nAtoms, double rhoStar, double sigma);
 
         double computeDistance(Atom &, Atom &);
-
+        std::vector<double> getDim();
 };
 
 #endif /* BOX_H */

@@ -10,6 +10,7 @@ class Atom {
         double sigma;
         double epsilon;
         std::vector<double> coords;
+        std::vector<double> force;
 
     public:
         Atom();

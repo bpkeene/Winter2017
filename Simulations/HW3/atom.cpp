@@ -1,11 +1,13 @@
 #include "atom.h"
-
+#include <vector>
 
 // atom constructor
 Atom::Atom() {
     // initialize the coords as a vector of length 3
     coords = std::vector<double> (3, 0.0);
 
+    // initialize the forces as a vector of length 3
+    force = std::vector<double> (3, 0.0);
 
 };
 
@@ -21,4 +23,6 @@ void Atom::setCoordinates(double _x, double _y, double _z) {
     coords[2] = _z;
 };
 
-
+std::vector<double> Atom::getCoordinates() {
+    return coords;
+};

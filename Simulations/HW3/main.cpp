@@ -84,18 +84,21 @@ int main(int argc, char *argv[]) {
     
 
     
-    // initialize the simulation
+    // define the simulation state
     Simulation simulation(nAtoms, density, sigma, epsilon, seed);
 
+    // initialize the atoms on a lattice
+    simulation.initializeAtoms();
+    
+    // print the initial configuration; simply pass in the simname and step count (0)
+    simulation.printConfig(simulationName, 0);
+    
     /*
-    // print the initial configuration
-    simulation.printConfig();
-
     // run the equilibration steps
     simulation.run(equilibration);
 
     // run the production steps
-    simulation.run(production,printXYZ);
+    simulation.run(production,printXYZ,trajectory);
     */
     return 0;
 };

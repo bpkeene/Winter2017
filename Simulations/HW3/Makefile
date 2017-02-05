@@ -2,7 +2,7 @@
 #
 # Compiler: g++
 
-OBJS = main.o simulation.o atom.o \
+OBJS = main.o simulation.o box.o atom.o \
 	   random_mars.o
 
 CC = g++
@@ -17,14 +17,14 @@ main.o: simulation.h
 	$(CC) $(CFLAGS) main.cpp
 
 simulation.o: simulation.h \
-	atom.h box.h random_mars.h
+	box.h atom.h random_mars.h
 	$(CC) $(CFLAGS) simulation.cpp
-
-atom.o: atom.h
-	$(CC) $(CFLAGS) atom.cpp
 
 box.o: box.h atom.h
 	$(CC) $(CFLAGS) box.cpp
+
+atom.o: atom.h
+	$(CC) $(CFLAGS) atom.cpp
 
 random_mars.o: random_mars.h
 	$(CC) $(CFLAGS) random_mars.cpp
@@ -38,7 +38,7 @@ random_mars.o: random_mars.h
 #	$(CC) $(CFLAGS) random_mars.cpp
 
 clean: 
-	rm -f *.o *~ MonteCarlo
+	rm -f *.o *.xyz *~ MonteCarlo
 
 
 

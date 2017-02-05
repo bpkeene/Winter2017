@@ -9,8 +9,8 @@ Box::Box(int nAtoms, double rhoStar, double sigma) {
     volume = (sigma * sigma * sigma) * nAtoms / rhoStar;
     
     x_dim = pow(volume, (1.0/3.0));
-    y_dim = lx;
-    z_dim = lx;
+    y_dim = x_dim;
+    z_dim = x_dim;
 
     dimensions[0] = x_dim;
     dimensions[1] = y_dim;
@@ -24,8 +24,8 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     double dxm, dym, dzm;
 
     // get the coords of the atoms
-    std::vector<double> coords1 = atom1.getCoords();
-    std::vector<double> coords2 = atom2.getCoords();
+    std::vector<double> coords1 = atom1.getCoordinates();
+    std::vector<double> coords2 = atom2.getCoordinates();
 
     // get dx, dy, dz
     dx = coords1[0] - coords2[0];
