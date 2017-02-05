@@ -19,6 +19,8 @@ class Box {
         Box();
         // our constructor
         Box(int nAtoms, double rhoStar, double sigma);
+        
+        void initializeAtoms(std::vector<Atom> &, std::vector< std::vector<double> > &);
 
         double computeDistance(Atom &, Atom &);
         std::vector<double> getDim();

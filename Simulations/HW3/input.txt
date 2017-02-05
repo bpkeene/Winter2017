@@ -1,5 +1,5 @@
 0.5           // rho: density, reduced
-1000          // nAtoms: number of atoms to simulate
+953          // nAtoms: number of atoms to simulate
 1.4           // sigma: sigma value for LJ 12-6 potential
 1.8           // epsilon: epsilon value for LJ 12-6 potential
 12039472      // seed: seed for Marsaglia PRNG
