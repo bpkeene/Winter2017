@@ -93,10 +93,11 @@ int main(int argc, char *argv[]) {
     // print the initial configuration; simply pass in the simname and step count (0)
     simulation.printConfig(simulationName, 0);
     
-    /*
+    
     // run the equilibration steps
     simulation.run(equilibration);
-
+    
+    /*
     // run the production steps
     simulation.run(production,printXYZ,trajectory);
     */
