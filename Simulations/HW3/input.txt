@@ -1,7 +1,8 @@
 0.5           // rho: density, reduced
-953          // nAtoms: number of atoms to simulate
+331          // nAtoms: number of atoms to simulate
 1.4           // sigma: sigma value for LJ 12-6 potential
 1.8           // epsilon: epsilon value for LJ 12-6 potential
+1.3           // Tstar: dimensionless temperature
 12039472      // seed: seed for Marsaglia PRNG
 100000        // Equilibration: number of equilibration steps to take
 20000         // Production: number of production steps to take

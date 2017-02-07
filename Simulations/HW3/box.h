@@ -25,7 +25,7 @@ class Box {
 
         double computeDistance(Atom &, Atom &);
         std::vector<double> getDim();
-
+        double getVolume();
         // translate some atom; we'll need the atom, alpha parameter, and the prng
         void Translate(Atom &, double, RanMars *);
 };

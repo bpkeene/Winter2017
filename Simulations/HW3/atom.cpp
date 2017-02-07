@@ -43,6 +43,14 @@ void Atom::saveForce(int idx) {
     idxSaved = idx;
 };
 
+std::vector< std::vector<double> > Atom::getOldForces() {
+    return oldForces;
+};
+
+std::vector< std::vector<double> > Atom::getForcesMatrix() {
+    return forces;
+};
+
 void Atom::resetForce() {
     forces[idxSaved][0] = ijForce[0];
     forces[idxSaved][1] = ijForce[1];
@@ -81,6 +89,14 @@ std::vector<double> Atom::getTotalForce() {
     return totalForce;
 };
 
+std::vector<double> Atom::getForces(int idx) {
+    std::vector<double> forcesToReturn = std::vector<double> (3, 0.0);
+    forcesToReturn[0] = forces[idx][0];
+    forcesToReturn[1] = forces[idx][1];
+    forcesToReturn[2] = forces[idx][2];
+    return forcesToReturn;
+};
+
 void Atom::updateTotalForce(int idx) {
     // the move was accepted; for each atom in atoms, update totalForce counter w.r.t this atom
     totalForce[0] += forces[idx][0] - ijForce[0];
@@ -95,6 +111,10 @@ void Atom::saveCoordinates() {
 
 void Atom::resetCoordinates() {
     coords = oldCoords;
+};
+
+std::vector<double> Atom::getOldCoordinates() {
+    return oldCoords;
 };
 
 double Atom::getSigma() {

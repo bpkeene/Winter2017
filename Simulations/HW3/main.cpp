@@ -44,6 +44,7 @@ int main(int argc, char *argv[]) {
     int nAtoms; // integer
     double sigma; // regular units
     double epsilon; // regular units
+    double Tstar; // dimensionless temperature
     int seed; // seed for Marsaglia PRNG
     int equilibration; // number of steps
     int production; // number of steps
@@ -59,6 +60,7 @@ int main(int argc, char *argv[]) {
     fscanf(input, "%d", &nAtoms); fgets(tt, 80, input);
     fscanf(input, "%lf", &sigma); fgets(tt, 80, input);
     fscanf(input, "%lf", &epsilon); fgets(tt, 80, input);
+    fscanf(input, "%lf", &Tstar); fgets(tt,80,input);
     fscanf(input, "%d", &seed); fgets(tt,80,input);
     fscanf(input, "%d", &equilibration); fgets(tt, 80, input);
     fscanf(input, "%d", &production); fgets(tt, 80, input);
@@ -76,16 +78,15 @@ int main(int argc, char *argv[]) {
     std::cout << "value of nAtoms: " << nAtoms << std::endl;
     std::cout << "value of sigma: " << sigma << std::endl;
     std::cout << "value of epsilon: " << epsilon << std::endl;
+    std::cout << "value of Tstar: " << Tstar << std::endl;
     std::cout << "value of seed: " << seed << std::endl;
     std::cout << "value of equilibration: " << equilibration << std::endl;
     std::cout << "value of production: " << production << std::endl;
     std::cout << "value of printXYZ: " << printXYZ << std::endl;
-    //std::cout << "value of simulation name: " << simulationName << std::endl;
-    
-
+    std::cout << "value of simulation name: " << simulationName << std::endl;
     
     // define the simulation state
-    Simulation simulation(nAtoms, density, sigma, epsilon, seed, simulationName);
+    Simulation simulation(nAtoms, density, sigma, epsilon, Tstar, seed, simulationName);
 
     // initialize the atoms on a lattice
     simulation.initializeAtoms();

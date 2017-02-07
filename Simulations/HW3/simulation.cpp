@@ -9,10 +9,10 @@
 
 // declare our constructor
 Simulation::Simulation(int _numberOfAtoms, double _density, 
-                   double _sigma, double _epsilon, int _seed, 
+                   double _sigma, double _epsilon, double _Tstar, int _seed, 
                    std::string _name) :
             numberOfAtoms(_numberOfAtoms), density(_density), 
-            sigma(_sigma), epsilon(_epsilon),name(_name)
+            sigma(_sigma), epsilon(_epsilon), Tstar(_Tstar), name(_name)
 {
 // and stuff to do here
     prng = new RanMars(_seed);
@@ -30,6 +30,19 @@ Simulation::Simulation(int _numberOfAtoms, double _density,
     rcut3 = rcut * rcut * rcut;
     rcut9 = rcut3 * rcut3 * rcut3;
     tail = 0.0;
+
+    double rho = (double) numberOfAtoms * sig3 / density;
+    double rho2 = rho * rho;
+    // calculate the pressure tail; this will be a static quantity throughout the simulation
+    ptail = (16.0 / 3.0) * M_PI * rho2 * ( (2.0/3.0) * (1.0 /rcut9) - (1.0/rcut3));
+    ptail_n = ptail / ( (double) numberOfAtoms);
+
+    // calculate the kinetic contribution to the pressure
+    pkinetic = rho * epsilon * Tstar;
+    pkinetic_n = pkinetic / ( (double) numberOfAtoms);
+    
+    totalKE = 3.0 / 2.0 *  ( (double) numberOfAtoms) * epsilon * Tstar;
+    totalKE_n = 3.0 / 2.0 * epsilon * Tstar;
 };
 
 
@@ -51,19 +64,30 @@ void Simulation::initializeAtoms() {
 void Simulation::run(int nsteps, int printXYZ, bool production) {
     // if we are doing a production run, open a file in which we can write data throughout the simulation
     // we'll also write a configuration file every 'printXYZ' number of steps
+    std::ostringstream stringStream;
+    stringStream.flush();
+    stringStream.str("");
+    stringStream << name << "_prop" << ".dat";
+    std::string simData = stringStream.str();
+    std::ofstream simDataFile(simData.c_str(), std::ios::out);
     if (production) {
-        std::ostringstream stringStream;
-        stringStream.flush();
-        stringStream.str("");
-        stringStream << name << "_prop" << ".dat";
-        std::string simData = stringStream.str();
-        std::ofstream simDataFile(simData.c_str(), std::ios::out);
-        simData << "# format: step    potentialEnergy   kineticEnergy    totalEnergy   pKinetic   pVirial   pTot" << std::endl;
+        simDataFile << "# format: step    potentialEnergy   kineticEnergy    totalEnergy   pKinetic   pVirial   pTot" << std::endl;
     };
     // for a given number of steps..
     accepted = 0.0;
     total = 0.0;
 
+    // if we are not doing a production run, we want to print out 
+    // the net force on each atom at the start of the run..
+    std::ostringstream stringStream2;
+    stringStream2.flush();
+    stringStream2.str("");
+    stringStream2 << name << "_init_forces.dat";
+    std::string initForces = stringStream2.str();
+    std::ofstream initForcesFile(initForces.c_str(), std::ios::out);
+    if (!(production)) {    
+        initForcesFile << "# format: atomIndex Fx Fy Fz" << std::endl;
+    };
 
     // and we'll do block averages as well for sampling for good alpha
     double acceptedInterval = 0.0;
@@ -102,9 +126,24 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         atoms[q].computeTotalForce();
     };
 
+    // if we are doing our equilibration, we can now write the forces data to file
+    // -- note that we expect the net force on each atom to be zero
+    if (!(production)) {
+        initForcesFile << atoms.size() << "\n" << std::endl;
+        std::vector<double> forcesToPrint;
+        for (int ijk = 0; ijk < atoms.size(); ijk++) {
+            forcesToPrint = atoms[ijk].getTotalForce();
+            initForcesFile << ijk << " " << forcesToPrint[0] << " " << forcesToPrint[1] << " " 
+                << forcesToPrint[2] << std::endl;
+        };
+    };
+
+    // just call this method anyways..
+    ComputePressure();
+
     //std::cout << "About to begin a run!" << std::endl;
     for (int i = 0; i < nsteps; i++) {
-
+        std::cout << "on step " << i << std::endl;
         // randomly select an atom to move
         idx = lrint(prng->uniform() * nAtomsIdx);
         
@@ -154,9 +193,14 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
             totalPE += (post_move_pot - pre_move_pot);
             for (int kk = 0; kk < atoms.size(); kk++) {
                 if (kk != idx) {
+                    // update the forces on each atom to be consistent with the new position
+                    LJForce(kk,idx);
                     atoms[kk].updateTotalForce(idx);
                 };
             };
+
+            ComputeDeltaPressure(idx);
+
         } else {
             
             // set the coordinates of this atom back to its old coordinates
@@ -176,6 +220,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         // update the total move counters, for this interval and for the simulation
         totalInterval += 1.0;
         total += 1.0;
+
 
         // if we are at the end of a block, i!=0, and doing equilibration, check alpha
         if ( ( (i % changeAlphaEvery) == 0) and (i != 0) and (!(production))) {
@@ -198,10 +243,21 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         // if we are at the end of printEvery during a production cycle, do stuff:
         if ( ( (i % printXYZ ) == 0 ) and (production) ) {
             printConfig(name,i);           
-            //insert stuff to do here
         };
 
-        //std::cout << "CurrentPE: " << totalPE << std::endl;
+        if (production) {
+        // output to simData the following quantities each step:
+        // step   PE    KE   (totalE)   pKinetic     PVirial   PTot   
+            double totalPE_n, totalE_n;
+        // we print our properties out normalized s.t. they are per-atom
+            totalPE_n = totalPE / ((double) atoms.size());
+            totalE_n = totalPE_n + totalKE_n;
+
+
+
+            simDataFile << i  << " " << totalPE_n << " " << totalKE_n << " " << (totalE_n) << 
+            " " << pkinetic << " " << pvirial << " " << (pkinetic + pvirial + ptail) << std::endl;
+        };
     };
 };
 
@@ -225,6 +281,111 @@ void Simulation::saveTempDistanceVector() {
     ijDistance_old = ijDistance;
 };
 
+
+void Simulation::ComputePressure() {
+    
+    double volume = box->getVolume();
+
+    double virialSum = 0.0;
+
+    // we get the actual vector r_ij;
+    std::vector<double> coords1;
+    std::vector<double> coords2;
+
+    // the magnitude of r_ij, as stored in our distances matrix
+    double rij;
+    double rijx, rijy, rijz;
+    std::vector<double> forces_ij;
+
+    double fs;
+
+    // do the sum
+    for (int i = 0; i < (atoms.size() - 1); i++) {
+        coords1 = atoms[i].getCoordinates();
+        for (int j = i+1; j < atoms.size(); j++) {
+            fs = 0.0;
+            coords2 = atoms[j].getCoordinates();
+            rij = distances[i][j];
+            rijx = (coords2[0] - coords1[0]) / rij;
+            rijy = (coords2[1] - coords1[1]) / rij;
+            rijz = (coords2[2] - coords1[2]) / rij;
+            forces_ij = atoms[i].getForces(j);
+
+            fs = (forces_ij[0] * rijx) + (forces_ij[1] * rijy) +
+                 (forces_ij[2] * rijz);
+
+            virialSum += fs;
+        };
+    };
+    double N = (double) atoms.size();
+    pvirial = virialSum * 2.0 / (3.0 * volume * N * (N - 1.0));
+};
+
+// after initially calculating the pressure in the simulation, we just need delta P's
+// from move to move
+void Simulation::ComputeDeltaPressure(int idx) {
+    double volume = box->getVolume();
+
+    double deltaVirial = 0.0;
+    double oldPressure = 0.0; 
+    double newPressure = 0.0;
+
+    double sumDeltaPs = 0.0;
+    // we get the actual vetor_r_ij;
+    std::vector<double> coords1;
+    std::vector<double> coords2;
+
+    std::vector<double> coords1_o;
+
+    // the magnitude of r_ij, as stored in our distances matrix
+    double rij, rij2;
+    double rijx, rijy, rijz;
+    double rijx2, rijy2, rijz2;
+
+    // get this atom's forces vector from before it was perturbed
+    std::vector< std::vector<double> > oldForces = atoms[idx].getOldForces();
+   
+    // we can assume the following:
+    std::vector< std::vector<double> > newForces = atoms[idx].getForcesMatrix();
+    // all forces on every atom are up to date, as are the distances
+    // also, the distances are up to date
+    coords1 = atoms[idx].getCoordinates();
+    coords1_o = atoms[idx].getOldCoordinates();  
+
+    int ii, jj;
+    for (int i = 0; i < (atoms.size()); i++) {
+        coords2 = atoms[i].getCoordinates();
+        if (i < idx) {
+            ii = i;
+            jj = idx;
+        } else if (i > idx) {
+            ii = idx;
+            jj = i;
+        } else {
+            continue;
+        };
+        rij = distances[ii][jj];
+        rij2 = ijDistance_old[i];
+        
+        rijx = (coords2[0] - coords1[0]) / rij;
+        rijy = (coords2[1] - coords1[1]) / rij;
+        rijz = (coords2[2] - coords1[2]) / rij;
+    
+        rijx2 = (coords2[0] - coords1_o[0]) / rij2;
+        rijy2 = (coords2[1] - coords1_o[1]) / rij2;
+        rijz2 = (coords2[2] - coords1_o[2]) / rij2;
+
+        oldPressure = (oldForces[i][0]*rijx2) + (oldForces[i][1]*rijy2) + (oldForces[i][2]*rijz2);
+        newPressure = (newForces[i][0]*rijx ) + (newForces[i][1]*rijy ) + (newForces[i][2]*rijz );
+        sumDeltaPs += (newPressure - oldPressure);
+    };
+
+    double N = (double) atoms.size();
+    deltaVirial = sumDeltaPs * 2.0 / ( 3.0 * volume * N * (N - 1.0));
+
+    pvirial += deltaVirial;
+
+};
 void Simulation::extractTempDistanceVector(int idx) {
     int ii, jj;
     for (unsigned int i = 0; i < atoms.size(); i++) {
@@ -278,12 +439,6 @@ void Simulation::resetDistancesMatrix(int idx) {
         distances[ii][jj] = ijDistance_old[i];
     };
 };
-
-//void Simulation::updateTempDistanceVector(int idx) {
-//    for (unsigned int i = 0; i < atoms.size(); i++) {
-//        ijDistance[i] = box->computeDistance(atoms[i],atoms[idx]);
-//    };
-//};
 
 void Simulation::ComputeTotalEnergy() {
     // zero our totalPE variable

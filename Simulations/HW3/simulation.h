@@ -13,6 +13,7 @@
  * it; essentially our 'main', less the input file.
  */
 
+// class Simulation
 class Simulation {
     
     private:
@@ -24,7 +25,8 @@ class Simulation {
         double sig12;
 
         double epsilon; // put this in the atoms class later
- 
+        double Tstar;
+
         double tail; // our tail correction (constant, once rcut is set)
         
         int seed; // seed for PRNG
@@ -37,8 +39,18 @@ class Simulation {
         bool acceptMove; // accept the move or not
         double alpha; // factor for the random numbers, determining the size of our translation
         std::string name;
+        
         double totalPE; // our total potential energy within the system
+        double totalKE; // total kinetic energy (3/2 * N k T)
+        double totalKE_n; // same quantity, but 3/2 k T
 
+        double pvirial; // virial contribution to the pressure
+        double pkinetic; // kinetic contribution to the pressure (should be pretty flat..)
+        double pkinetic_n; // kinetic contribution normalized by the number of atoms (pkinetic / n)
+        double ptail;
+        double ptail_n; //normalized on a per-atom basis (ptail / nAtoms)
+        double ptot; // sum of virial and kinetic contributions to the pressure
+        
         // we'll have a box of type box
         Box *box;
 
@@ -71,8 +83,6 @@ class Simulation {
 
         void extractTempDistanceVector(int);
 
-        void updateTempDistanceVector(int);
-
         void saveTempDistanceVector();
 
         void updateDistancesMatrix(int);
@@ -83,10 +93,15 @@ class Simulation {
 
         double ComputeAtomPotential(int);
 
+        // computes the virial contribution to the pressure
+        void ComputePressure();
+
+        void ComputeDeltaPressure(int);
     public:
 
+        // our constructor
         Simulation(int _numberOfAtoms, double _density, 
-                   double _sigma, double _epsilon, int _seed,
+                   double _sigma, double _epsilon, double _Tstar, int _seed,
                    std::string _name); 
 
         // initialize the atoms on a lattice
@@ -100,4 +115,4 @@ class Simulation {
 };
 
 
-#endif // end of simulator.h
+#endif /* SIMULATION_H */

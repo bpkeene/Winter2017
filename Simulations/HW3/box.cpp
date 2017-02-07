@@ -150,7 +150,9 @@ void Box::Translate(Atom &atom, double alpha, RanMars *prng) {
 
 };
 
-
+double Box::getVolume() {
+    return volume;
+};
 
 
 // return the lengths of the sides of the box

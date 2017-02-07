@@ -49,7 +49,10 @@ class Atom {
         
         void saveForce(int); // save forces of atom w.r.t. atom idx
         void saveForces(); // save /all/ forces; this atom is being moved!
-        
+        std::vector< std::vector<double> > getOldForces(); // get the old forces that were saved
+        std::vector< std::vector<double> > getForcesMatrix();
+        std::vector<double> getOldCoordinates();
+        // before this atom was perturbed
         void setForce(int idx, std::vector<double>);
         
         void resetForce(); // reset forces w.r.t. atom idxSaved
@@ -65,6 +68,9 @@ class Atom {
         void saveCoordinates();
 
         void resetCoordinates();
+
+        // get some subset of the vector forces above;
+        std::vector<double>  getForces(int);
 
         // get the coordinates
         std::vector<double> getCoordinates();
