@@ -31,18 +31,6 @@ Simulation::Simulation(int _numberOfAtoms, double _density,
     rcut9 = rcut3 * rcut3 * rcut3;
     tail = 0.0;
 
-    double rho = (double) numberOfAtoms * sig3 / density;
-    double rho2 = rho * rho;
-    // calculate the pressure tail; this will be a static quantity throughout the simulation
-    ptail = (16.0 / 3.0) * M_PI * rho2 * ( (2.0/3.0) * (1.0 /rcut9) - (1.0/rcut3));
-    ptail_n = ptail / ( (double) numberOfAtoms);
-
-    // calculate the kinetic contribution to the pressure
-    pkinetic = rho * epsilon * Tstar;
-    pkinetic_n = pkinetic / ( (double) numberOfAtoms);
-    
-    totalKE = 3.0 / 2.0 *  ( (double) numberOfAtoms) * epsilon * Tstar;
-    totalKE_n = 3.0 / 2.0 * epsilon * Tstar;
 };
 
 
@@ -62,8 +50,22 @@ void Simulation::initializeAtoms() {
 // print xyz every printXYZ steps,
 // and a bool parameter denoting whether or not we are running production
 void Simulation::run(int nsteps, int printXYZ, bool production) {
+    double rho = (double) numberOfAtoms * sig3 / (box->getVolume());
+    double rho2 = rho * rho;
+    // calculate the pressure tail; this will be a static quantity throughout the simulation
+    ptail = (16.0 / 3.0) * M_PI * rho2 * ( (2.0/3.0) * (sig3*sig6 /rcut9) - (sig3/rcut3));
+    ptail_n = ptail / ( (double) numberOfAtoms);
+
+    // calculate the kinetic contribution to the pressure
+    pkinetic = rho * epsilon * Tstar;
+    pkinetic_n = pkinetic / ( (double) numberOfAtoms);
+    
+    totalKE = 3.0 / 2.0 *  ( (double) numberOfAtoms) * epsilon * Tstar;
+    totalKE_n = 3.0 / 2.0 * epsilon * Tstar;
+    
     // if we are doing a production run, open a file in which we can write data throughout the simulation
     // we'll also write a configuration file every 'printXYZ' number of steps
+    
     std::ostringstream stringStream;
     stringStream.flush();
     stringStream.str("");
@@ -76,18 +78,6 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
     // for a given number of steps..
     accepted = 0.0;
     total = 0.0;
-
-    // if we are not doing a production run, we want to print out 
-    // the net force on each atom at the start of the run..
-    std::ostringstream stringStream2;
-    stringStream2.flush();
-    stringStream2.str("");
-    stringStream2 << name << "_init_forces.dat";
-    std::string initForces = stringStream2.str();
-    std::ofstream initForcesFile(initForces.c_str(), std::ios::out);
-    if (!(production)) {    
-        initForcesFile << "# format: atomIndex Fx Fy Fz" << std::endl;
-    };
 
     // and we'll do block averages as well for sampling for good alpha
     double acceptedInterval = 0.0;
@@ -129,6 +119,13 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
     // if we are doing our equilibration, we can now write the forces data to file
     // -- note that we expect the net force on each atom to be zero
     if (!(production)) {
+        std::ostringstream stringStream2;
+        stringStream2.flush();
+        stringStream2.str("");
+        stringStream2 << name << "_init_forces.dat";
+        std::string initForces = stringStream2.str();
+        std::ofstream initForcesFile(initForces.c_str(), std::ios::out);
+        initForcesFile << "# format: atomIndex Fx Fy Fz" << std::endl;
         initForcesFile << atoms.size() << "\n" << std::endl;
         std::vector<double> forcesToPrint;
         for (int ijk = 0; ijk < atoms.size(); ijk++) {
@@ -143,7 +140,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
 
     //std::cout << "About to begin a run!" << std::endl;
     for (int i = 0; i < nsteps; i++) {
-        std::cout << "on step " << i << std::endl;
+        //std::cout << "on step " << i << std::endl;
         // randomly select an atom to move
         idx = lrint(prng->uniform() * nAtomsIdx);
         
@@ -242,6 +239,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
 
         // if we are at the end of printEvery during a production cycle, do stuff:
         if ( ( (i % printXYZ ) == 0 ) and (production) ) {
+            std::cout << "At step " << i << " of production." << std::endl;
             printConfig(name,i);           
         };
 
@@ -267,7 +265,7 @@ bool Simulation::acceptOrReject(double pre, double post) {
     if (deltaE < 0.0) {
         return true;
     } else {
-        double probability = exp(-deltaE/epsilon);
+        double probability = exp(-deltaE/(epsilon*Tstar));
         double rn = prng->uniform();
         if (probability > rn) {
             return true;
@@ -318,7 +316,7 @@ void Simulation::ComputePressure() {
         };
     };
     double N = (double) atoms.size();
-    pvirial = virialSum * 2.0 / (3.0 * volume * N * (N - 1.0));
+    pvirial = virialSum * 2.0 / (3.0 * volume );
 };
 
 // after initially calculating the pressure in the simulation, we just need delta P's
@@ -381,7 +379,7 @@ void Simulation::ComputeDeltaPressure(int idx) {
     };
 
     double N = (double) atoms.size();
-    deltaVirial = sumDeltaPs * 2.0 / ( 3.0 * volume * N * (N - 1.0));
+    deltaVirial = sumDeltaPs * 2.0 / ( 3.0 * volume );
 
     pvirial += deltaVirial;
 
