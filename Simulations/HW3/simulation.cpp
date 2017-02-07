@@ -49,9 +49,21 @@ void Simulation::initializeAtoms() {
 // print xyz every printXYZ steps,
 // and a bool parameter denoting whether or not we are running production
 void Simulation::run(int nsteps, int printXYZ, bool production) {
+    // if we are doing a production run, open a file in which we can write data throughout the simulation
+    // we'll also write a configuration file every 'printXYZ' number of steps
+    if (production) {
+        std::ostringstream stringStream;
+        stringStream.flush();
+        stringStream.str("");
+        stringStream << name << "_prop" << ".dat";
+        std::string simData = stringStream.str();
+        std::ofstream simDataFile(simData.c_str(), std::ios::out);
+        simData << "# format: step    potentialEnergy   kineticEnergy    totalEnergy   pKinetic   pVirial   pTot" << std::endl;
+    };
     // for a given number of steps..
     accepted = 0.0;
     total = 0.0;
+
 
     // and we'll do block averages as well for sampling for good alpha
     double acceptedInterval = 0.0;
@@ -170,10 +182,11 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
             double successRatioInterval = acceptedInterval / totalInterval;
             if (successRatioInterval >= 0.55) {
                 // we can increase alpha a bit to take larger steps
-                alpha *= 1.05;
-            } else if (successRatioInterval <= 0.45) {
-                // we should take smaller steps..
-                alpha *= 0.95;
+                alpha += (prng->uniform() * prng->uniform()) * sigma;
+            }; 
+            if (successRatioInterval <= 0.45) {
+                // we should take smaller steps.. note that uniform is [0,1.) so we don't need fabs()
+                alpha -= (prng->uniform() * prng->uniform())*alpha;
             };
             // sanity check: print the equilibration step # (absolute) and the interval acceptance ratio
             std::cout << "At step " << i << " of equilibration " << "with acceptance ratio " << successRatioInterval << std::endl;
@@ -187,7 +200,8 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
             printConfig(name,i);           
             //insert stuff to do here
         };
-        std::cout << "CurrentPE: " << totalPE << std::endl;
+
+        //std::cout << "CurrentPE: " << totalPE << std::endl;
     };
 };
 
@@ -430,11 +444,9 @@ void Simulation::printConfig(std::string name, int step) {
    
     // now, write atom name, xpos, ypos, zpos (newline) to file
     std::vector<double> theseCoords = std::vector<double> (3,0.0);
-    //std::vector<double> theseForces = std::vector<double> (3,0.0);
     
     for (unsigned int i = 0; i < atoms.size(); i++) {
-        //theseForces = atoms[i].getTotalForce();
-        //theseCoords = atoms[i].getCoordinates();
+        theseCoords = atoms[i].getCoordinates();
         xyzFile << "atom" << i << " " << theseCoords[0] << " " << theseCoords[1] << " " << theseCoords[2] << std::endl;
     };
 
