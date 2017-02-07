@@ -2,8 +2,8 @@
 #include "atom.h"
 #include <vector>
 #include <math.h>
-//#include <stdio.h>
 #include <iostream>
+
 // our constructor
 Box::Box(int nAtoms, double rhoStar, double sigma) {
     
@@ -112,6 +112,46 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     return sqrt(dxm*dxm + dym*dym + dzm*dzm);
 
 };
+
+void Box::Translate(Atom &atom, double alpha, RanMars *prng) {
+    std::vector<double> coords = atom.getCoordinates();
+    double s1,s2,s3; // our three random numbers
+    s1 = (prng->uniform() * 2.0) - 1.0;
+    s2 = (prng->uniform() * 2.0) - 1.0;
+    s3 = (prng->uniform() * 2.0) - 1.0;
+
+    // alter the coordinates of the atom by alpha*s
+    coords[0] += alpha * s1;
+    coords[1] += alpha * s2;
+    coords[2] += alpha * s3;
+
+    // apply PBC
+    if (coords[0] < 0.0) {
+        coords[0] += x_dim;
+    };
+    if (coords[0] > x_dim) {
+        coords[0] -= x_dim;
+    };
+    if (coords[1] <0.0) {
+        coords[1] += y_dim;
+    };
+    if (coords[1] > y_dim) {
+        coords[1] -= y_dim;
+    };
+    if (coords[2] < 0.0) {
+        coords[2] += z_dim;
+    };
+    if (coords[2] > z_dim) {
+        coords[2] -= z_dim;
+    };
+
+    // could probably make it so that setCoordinates takes a vector.. but eh
+    atom.setCoordinates(coords[0], coords[1], coords[2]);
+
+};
+
+
+
 
 // return the lengths of the sides of the box
 std::vector<double> Box::getDim() {

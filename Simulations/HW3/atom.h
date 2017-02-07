@@ -9,9 +9,26 @@ class Atom {
         // every LJ atom will have a sigma, epsilon, and tuple of coordinates;
         double sigma;
         double epsilon;
+        double sig2;
+        double sig6;
+        double sig12;
         std::vector<double> coords;
-        std::vector<double> force;
         std::vector<double> oldCoords;
+        std::vector< std::vector<double> > forces;
+
+        // a 3-value vector containing the sum of all forces on this atom 
+        // at this point in time;
+        // calling this computes the force using the forces vector
+        // and so the forces vector /must/ be up to date!
+        std::vector<double> totalForce;
+
+        // this atom is being moved; store all the old forces
+        std::vector< std::vector<double> > oldForces;
+       
+        // another atom is being moved; store the old ij force
+        std::vector<double> ijForce;
+        int idxSaved; // index to which ijForce corresponds
+
     public:
         Atom();
         
@@ -20,11 +37,31 @@ class Atom {
        
         // retrieve the LJ parameters
         double getSigma();
+
         double getEpsilon();
+
+        double getSig2();
+        double getSig6();
+        double getSig12();
+
+        void initializeForces(int); // initializes the force vectors, nothing more;
+                // does /not/ populate them!
+        
+        void saveForce(int); // save forces of atom w.r.t. atom idx
+        void saveForces(); // save /all/ forces; this atom is being moved!
+        
+        void setForce(int idx, std::vector<double>);
+        
+        void resetForce(); // reset forces w.r.t. atom idxSaved
+        void resetForces(); // reset /all/ forces (this atom failed to move!)
+        
+        void computeTotalForce(); // populate totalForce vector
+        void updateTotalForce(int); // update the totalForce vector after each move
+        std::vector<double> getTotalForce(); // retrieve the total force vector
 
         // set the coordinates
         void setCoordinates(double _x, double _y, double _z);
-
+        
         void saveCoordinates();
 
         void resetCoordinates();

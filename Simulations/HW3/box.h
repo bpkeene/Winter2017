@@ -2,6 +2,7 @@
 #define BOX_H
 
 #include "atom.h"
+#include "random_mars.h"
 #include <vector>
 
 
@@ -24,6 +25,9 @@ class Box {
 
         double computeDistance(Atom &, Atom &);
         std::vector<double> getDim();
+
+        // translate some atom; we'll need the atom, alpha parameter, and the prng
+        void Translate(Atom &, double, RanMars *);
 };
 
 #endif /* BOX_H */

@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 
     
     // define the simulation state
-    Simulation simulation(nAtoms, density, sigma, epsilon, seed);
+    Simulation simulation(nAtoms, density, sigma, epsilon, seed, simulationName);
 
     // initialize the atoms on a lattice
     simulation.initializeAtoms();
@@ -93,14 +93,18 @@ int main(int argc, char *argv[]) {
     // print the initial configuration; simply pass in the simname and step count (0)
     simulation.printConfig(simulationName, 0);
     
-    
+    bool isProduction = false;
     // run the equilibration steps
-    simulation.run(equilibration);
+    simulation.run(equilibration,printXYZ,isProduction);
     
-    /*
+    isProduction = true;
+    std::cout << "completed equilibration!" << std::endl;
+    
     // run the production steps
-    simulation.run(production,printXYZ,trajectory);
-    */
+    simulation.run(production,printXYZ,isProduction);
+    
+    simulation.printConfig(simulationName,production);
+
     return 0;
 };
 
