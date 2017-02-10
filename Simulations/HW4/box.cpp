@@ -21,7 +21,7 @@ Box::Box(int nAtoms, double rhoStar, double sigma) {
     dimensions[2] = z_dim;
 }
 
-void Box::initializeAtoms(std::vector<Atom> &atoms, std::vector< std::vector<double> > &distances) {
+void Box::initializeAtoms(std::vector<Atom> &atoms) {
 
     double increment;
     double initial_x_pos, initial_y_pos, initial_z_pos;
@@ -52,7 +52,6 @@ void Box::initializeAtoms(std::vector<Atom> &atoms, std::vector< std::vector<dou
 
     int atomIndex = 0;
     int numberOfAtoms = (int) atoms.size();
-    std::cout << "about to initialize the atoms!" << std::endl;
     for (int i = 0; i < atomsPerLength; i++) {
         zpos = initial_z_pos + i * increment;
         for (int j = 0; j < atomsPerLength; j++) {
@@ -66,18 +65,6 @@ void Box::initializeAtoms(std::vector<Atom> &atoms, std::vector< std::vector<dou
                 } else {
                     break;
                 };
-            };
-        };
-    };
-
-    std::cout << "successfully initialized all atoms!" << std::endl;
-    // we also may as well initialize the matrix containing the distances between all atoms
-    for (unsigned int m = 0; m < distances[0].size(); m++) {
-        for (unsigned int n = 0; n < distances[0].size(); n++) {
-            if (n <= m) {
-                distances[m][n] = 0.0;
-            } else {
-                distances[m][n] = computeDistance(atoms[m],atoms[n]);
             };
         };
     };
@@ -113,17 +100,8 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
 
 };
 
-void Box::Translate(Atom &atom, double alpha, RanMars *prng) {
+void Box::enforcePBC(Atom &atom) {
     std::vector<double> coords = atom.getCoordinates();
-    double s1,s2,s3; // our three random numbers
-    s1 = (prng->uniform() * 2.0) - 1.0;
-    s2 = (prng->uniform() * 2.0) - 1.0;
-    s3 = (prng->uniform() * 2.0) - 1.0;
-
-    // alter the coordinates of the atom by alpha*s
-    coords[0] += alpha * s1;
-    coords[1] += alpha * s2;
-    coords[2] += alpha * s3;
 
     // apply PBC
     if (coords[0] < 0.0) {

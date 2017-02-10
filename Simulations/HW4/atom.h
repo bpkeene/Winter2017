@@ -4,32 +4,18 @@
 #include <vector>
 
 class Atom {
-    private:
+    public:
 
         // every LJ atom will have a sigma, epsilon, and tuple of coordinates;
         double sigma;
         double epsilon;
-        double sig2;
-        double sig6;
-        double sig12;
-        std::vector<double> coords;
-        std::vector<double> oldCoords;
-        std::vector< std::vector<double> > forces;
+        double mass;  // need mass for MD simulation
         
-        // a 3-value vector containing the sum of all forces on this atom 
-        // at this point in time;
-        // calling this computes the force using the forces vector
-        // and so the forces vector /must/ be up to date!
-        std::vector<double> totalForce;
-
-        // this atom is being moved; store all the old forces
-        std::vector< std::vector<double> > oldForces;
-       
-        // another atom is being moved; store the old ij force
-        std::vector<double> ijForce;
-        int idxSaved; // index to which ijForce corresponds
-
-    public:
+        //position, force, and velocity vectors for this atom
+        std::vector<double> xs;
+        std::vector<double> fs;
+        std::vector<double> vs;      
+        
         Atom();
         
         // set the LJ parameters
@@ -37,43 +23,35 @@ class Atom {
        
         // retrieve the LJ parameters
         double getSigma();
-
         double getEpsilon();
 
-        double getSig2();
-        double getSig6();
-        double getSig12();
-
-        void initializeForces(int); // initializes the force vectors, nothing more;
-                // does /not/ populate them!
-        
-        void saveForce(int); // save forces of atom w.r.t. atom idx
-        void saveForces(); // save /all/ forces; this atom is being moved!
-        std::vector< std::vector<double> > getOldForces(); // get the old forces that were saved
-        std::vector< std::vector<double> > getForcesMatrix();
-        std::vector<double> getOldCoordinates();
-        // before this atom was perturbed
-        void setForce(int idx, std::vector<double>);
-        
-        void resetForce(); // reset forces w.r.t. atom idxSaved
-        void resetForces(); // reset /all/ forces (this atom failed to move!)
-        
-        void computeTotalForce(); // populate totalForce vector
-        void updateTotalForce(int); // update the totalForce vector after each move
-        std::vector<double> getTotalForce(); // retrieve the total force vector
-
-        // set the coordinates
+        // set the coordinates (for initializations)
         void setCoordinates(double _x, double _y, double _z);
-        
-        void saveCoordinates();
+      
+        // during the middle of an integration step, we want to reset the forces;
+        void resetForces();
 
-        void resetCoordinates();
+        // add the forces that were calculated to the tally
+        void addForce(std::vector<double> _fs);
 
-        // get some subset of the vector forces above;
-        std::vector<double>  getForces(int);
+        // set the velocities (for initializations)
+        void setVelocities(double _vx, double _vy, double _vz);
+
+        void addVelocities(std::vector<double> _vs);
+
+        void addCoordinates(std::vector<double> _xs);
 
         // get the coordinates
         std::vector<double> getCoordinates();
+
+
+        // get the velocities
+        std::vector<double> getVelocities();
+
+        // get the forces
+        std::vector<double> getForces();
+
+        void setMass(double _mass);
 };
 
 
