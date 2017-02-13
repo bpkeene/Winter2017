@@ -60,6 +60,7 @@ void Box::initializeAtoms(std::vector<Atom> &atoms) {
             for (int k = 0; k < atomsPerLength; k++) {
                 if (atomIndex < numberOfAtoms) {
                     atoms[atomIndex].setCoordinates(xpos,ypos,zpos);
+                    atoms[atomIndex].setInitCoordinates();
                     xpos += increment;
                     atomIndex++;
                 } else {
@@ -102,25 +103,31 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
 
 void Box::enforcePBC(Atom &atom) {
     std::vector<double> coords = atom.getCoordinates();
-
+    
     // apply PBC
     if (coords[0] < 0.0) {
         coords[0] += x_dim;
+        atom.boxesTraveled[0] -= 1.0;
     };
     if (coords[0] > x_dim) {
         coords[0] -= x_dim;
+        atom.boxesTraveled[0] += 1.0;
     };
     if (coords[1] <0.0) {
         coords[1] += y_dim;
+        atom.boxesTraveled[1] -= 1.0;
     };
     if (coords[1] > y_dim) {
         coords[1] -= y_dim;
+        atom.boxesTraveled[1] += 1.0;
     };
     if (coords[2] < 0.0) {
         coords[2] += z_dim;
+        atom.boxesTraveled[2] -= 1.0;
     };
     if (coords[2] > z_dim) {
         coords[2] -= z_dim;
+        atom.boxesTraveled[2] += 1.0;
     };
 
     // could probably make it so that setCoordinates takes a vector.. but eh
@@ -128,6 +135,29 @@ void Box::enforcePBC(Atom &atom) {
 
 };
 
+double Box::computeAbsoluteDistance(Atom &atom) {
+    // compute the absolute distance a particle has traversed, unwrapping the PBC
+    std::vector<double> coords = atom.getCoordinates();
+
+    // copy the initial values, so we don't overwrite them
+    std::vector<double> coords_init = atom.xs_init;
+
+    // and finally, copy the boxes traveled vector;
+    std::vector<double> boxes = atom.boxesTraveled;
+
+    double deltar2;
+    double dx, dy, dz;
+    
+    // the second term (e.g., "x_dim * boxes[0]") amounts to unwrapping the periodicity
+    // which permits us to get the absolute quantity that we desire
+    dx = (coords[0] + (x_dim * boxes[0])) - coords_init[0];
+    dy = (coords[1] + (y_dim * boxes[1])) - coords_init[1];
+    dz = (coords[2] + (z_dim * boxes[2])) - coords_init[2];
+
+    deltar2 = (dx * dx) + (dy * dy) + (dz * dz);
+    return deltar2;
+
+};
 double Box::getVolume() {
     return volume;
 };

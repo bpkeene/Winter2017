@@ -15,7 +15,18 @@ class Atom {
         std::vector<double> xs;
         std::vector<double> fs;
         std::vector<double> vs;      
+
+        // a vector of our initial coords
+        std::vector<double> xs_init;
+
+        // a vector of our initial velocities
+        std::vector<double> vs_init;
+
+        // a vector of 3 int's, initialized to (0,0,0), denoting lengths 
+        // in the x, y, z direction traveled since  beginning of the simulation
+        std::vector<double> boxesTraveled;       
         
+        // just use a default constructor
         Atom();
         
         // set the LJ parameters
@@ -27,7 +38,10 @@ class Atom {
 
         // set the coordinates (for initializations)
         void setCoordinates(double _x, double _y, double _z);
-      
+     
+        // populates xs_init vector
+        void setInitCoordinates();
+
         // during the middle of an integration step, we want to reset the forces;
         void resetForces();
 
@@ -43,7 +57,6 @@ class Atom {
 
         // get the coordinates
         std::vector<double> getCoordinates();
-
 
         // get the velocities
         std::vector<double> getVelocities();

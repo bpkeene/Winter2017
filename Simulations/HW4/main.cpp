@@ -31,23 +31,14 @@ int main(int argc, char *argv[]) {
 
     input = fopen(argv[1],"r");
 
-    /* 
-     * We look for the following parameters in the input file:
-     * - a density (reduced)
-     * - # of atoms
-     * - LJ sigma parameter
-     * - LJ epsilon parameter
-     *
-     */
-
     double density; // reduced units
     int nAtoms; // integer
-    double mass;
+    double mass; // amu? idk
     double sigma; // regular units
     double epsilon; // regular units
     double Tstar; // dimensionless temperature
     int seed; // seed for Marsaglia PRNG
-    double timestep; // timestep to be taken
+    double timestep; // timestep to be taken; coefficient to LJ time
     int equilibration; // number of steps
     int production; // number of steps
     int printXYZ; // every number of steps
@@ -92,7 +83,7 @@ int main(int argc, char *argv[]) {
     std::cout << "value of simulation name: " << simulationName << std::endl;
     
     // define the simulation state
-    Simulation simulation(nAtoms, density, timestep, sigma, epsilon, Tstar, seed, simulationName);
+    Simulation simulation(nAtoms, density, timestep, mass, sigma, epsilon, Tstar, seed, simulationName);
 
     // initialize the atoms on a lattice
     simulation.initializeAtomsPositions();

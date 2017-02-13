@@ -8,10 +8,10 @@
 #include <fstream>
 
 // declare our constructor
-Simulation::Simulation(int _numberOfAtoms, double _density, double _dt,
+Simulation::Simulation(int _numberOfAtoms, double _density, double _dt, double _mass,
                    double _sigma, double _epsilon, double _Tstar, int _seed, 
                    std::string _name) :
-            numberOfAtoms(_numberOfAtoms), density(_density), dt(_dt),
+            numberOfAtoms(_numberOfAtoms), density(_density), dt(_dt), mass(_mass),
             sigma(_sigma), epsilon(_epsilon), Tstar(_Tstar), name(_name)
 {
 // and stuff to do here
@@ -37,7 +37,6 @@ Simulation::Simulation(int _numberOfAtoms, double _density, double _dt,
 
 void Simulation::initializeAtomsPositions() {
     // initialize the atoms on the lattice in the box;
-    // what should be the inter-atomic distance?
 
     // initialize the vector of atoms
     atoms = std::vector<Atom> (numberOfAtoms);
@@ -45,13 +44,24 @@ void Simulation::initializeAtomsPositions() {
     // and tell box to place the atoms in the box & compute distances subject to the geometry
     box->initializeAtoms(atoms);
 
-    //std::cout << "returned from box->initializeAtoms" << std::endl;
 
 }; 
 
 void Simulation::initializeAtomsVelocities() {
-    // TODO
 
+    for (int i = 0; i < (int) atoms.size(); i++) {
+        // we need to sample from the proper distribution here corresponding to our T*...
+
+
+    };
+    
+    
+    
+    // calculate the total momentum
+    //calculateTotalMomentum();
+    //
+    //scale the momentum s.t. that net momentum within the box is zero
+    //scaleMomentum();
 
 };
 // our run() method, for nsteps;

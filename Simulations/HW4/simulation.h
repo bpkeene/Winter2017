@@ -41,6 +41,7 @@ class Simulation {
         double rcut3; // rcut ^ 3
         double rcut9; // rcut ^ 9
         double total; // total number of moves
+
         std::string name;
        
         std::vector<double> deltaR2; // for calculating the diffusionCoeff;
@@ -80,7 +81,7 @@ class Simulation {
     public:
 
         // our constructor
-        Simulation(int _numberOfAtoms, double _density, double _dt,
+        Simulation(int _numberOfAtoms, double _density, double _dt, double _mass,
                    double _sigma, double _epsilon, double _Tstar, int _seed,
                    std::string _name); 
 

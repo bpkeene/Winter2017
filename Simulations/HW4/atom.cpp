@@ -11,6 +11,7 @@ Atom::Atom() {
 
     vs = std::vector<double> (3, 0.0);
 
+    boxesTraveled = std::vector<double> (3, 0);
 };
 
 void Atom::setMass(double _mass) {
@@ -26,6 +27,11 @@ void Atom::setCoordinates(double _x, double _y, double _z) {
     xs[0] = _x;
     xs[1] = _y;
     xs[2] = _z;
+};
+
+// this should /only/ be called when box initializes the atoms!
+void Atom::setInitCoordinates() {
+    xs_init = xs;
 };
 
 void Atom::addCoordinates(std::vector<double> _xs) {
