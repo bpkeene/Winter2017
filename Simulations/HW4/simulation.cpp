@@ -62,16 +62,16 @@ void Simulation::initializeAtomsVelocities() {
     double massTemporary = (double) mass;
 
     // our BoxMullerConstant, to be used in generating the velocities corresponding to our T*
-    //double BoxMullerConstant = sqrt(3.0 * Tstar / massTemporary);
+    double BoxMullerConstant = sqrt(epsilon * Tstar / massTemporary);
     
     px = py = pz = 0.0;
 
     std::vector<double> theseVels;
     for (int i = 0; i < (int) atoms.size(); i++) {
         // we need to sample from the proper distribution here corresponding to our T*...
-        vx = prng->gaussian() * Tstar;
-        vy = prng->gaussian() * Tstar;
-        vz = prng->gaussian() * Tstar;
+        vx = prng->gaussian() * BoxMullerConstant;
+        vy = prng->gaussian() * BoxMullerConstant;
+        vz = prng->gaussian() * BoxMullerConstant;
         atoms[i].setVelocities(vx,vy,vz);
         theseVels = atoms[i].getVelocities();
         px += (theseVels[0] );
@@ -104,6 +104,8 @@ void Simulation::initializeAtomsVelocities() {
     std::cout << "Momenta px py pz: " << px << " " << py << " " << pz << std::endl;
 
 }
+
+
 // our run() method, for nsteps;
 // print xyz every printXYZ steps,
 // and a bool parameter denoting whether or not we are running production
@@ -186,14 +188,12 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
             production = true;
         };
         /* Velocity-Verlet Integrator
-         *
          * --update velocities by half step, according to current forces (accelerations)
          * --update positions, according to current velocities & accelerations
          * --zero the forces
          * --compute the forces present in the system
          * --update the velocities by a half step
          * ----and do this 'nsteps' number of times
-         *
          */
 
         // half-step velocities update
@@ -219,15 +219,14 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         
         ComputeTotalKineticEnergy();
         // if we are at the end of printEvery during a production cycle, do stuff:
-        //
         
         if ( (i % 200) == 0) {
             std::cout << "At step " << i << " with total energy " << (totalPE + totalKE) << std::endl;
             //printConfig(name,i);
         };
         //if ( ( (i % printXYZ ) == 0 ) and (production) ) {
-            //std::cout << "At step " << i << " of production." << std::endl;
-            //printConfig(name,i);           
+            std::cout << "At step " << i << " of production." << std::endl;
+            printConfig(name,i);           
         //};
 
         // output to simData the following quantities each step:
@@ -333,8 +332,8 @@ void Simulation::ComputeTotalPotentialEnergy() {
 
     // and our tail correction, since we truncate the potential abruptly
     // note that 'density' here is rhoStar - so, divide by sig3
-    tail = ( (8.0 / 3.0) * M_PI * density / (sig3));
-    tail *= ( ( (1.0 / 3.0) * (sig9 / rcut9)) - (sig3 / rcut3));
+    tail = ( (8.0 / 3.0) * M_PI * density) ;
+    tail *= ( ( (1.0 / 3.0) * (1.0 / rcut9)) - (1.0 / rcut3));
     totalPE += tail;
 };
 

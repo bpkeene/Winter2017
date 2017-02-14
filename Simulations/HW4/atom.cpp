@@ -39,7 +39,7 @@ std::vector<double> Atom::getInitCoordinates() {
     return xs_init;
 };
 
-void Atom::addCoordinates(std::vector<double> _xs) {
+void Atom::addCoordinates(std::vector<double> &_xs) {
     xs[0] += _xs[0];
     xs[1] += _xs[1];
     xs[2] += _xs[2];
@@ -56,7 +56,7 @@ void Atom::resetForces() {
     fs = std::vector<double> (3, 0.0);
 };
 
-void Atom::addForce(double fsx, double fsy, double fsz) {
+void Atom::addForce(double &fsx, double &fsy, double &fsz) {
     fs[0] += fsx;
     fs[1] += fsy;
     fs[2] += fsz;
@@ -65,7 +65,7 @@ void Atom::addForce(double fsx, double fsy, double fsz) {
 std::vector<double> Atom::getForces() {
     return fs;
 };
-void Atom::addVelocities(std::vector<double> _vs) {
+void Atom::addVelocities(std::vector<double> &_vs) {
     vs[0] += _vs[0];
     vs[1] += _vs[1];
     vs[2] += _vs[2];

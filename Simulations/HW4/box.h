@@ -12,6 +12,7 @@ class Box {
         double y_dim;
         double z_dim;
 
+        double sigma;
         double volume;
 
         std::vector<double> dimensions;

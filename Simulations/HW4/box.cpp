@@ -5,10 +5,11 @@
 #include <iostream>
 
 // our constructor
-Box::Box(int nAtoms, double rhoStar, double sigma) {
+Box::Box(int nAtoms, double rhoStar, double _sigma) {
     
+    sigma = _sigma;
     dimensions = std::vector<double> (3,0.0);
-    volume = (sigma * sigma * sigma) * nAtoms / rhoStar;
+    volume = ( (double) nAtoms) / rhoStar;
     std::cout << "volume calculated to be: " << volume << std::endl;
 
     x_dim = pow(volume, (1.0/3.0));
@@ -76,8 +77,11 @@ void Box::initializeAtoms(std::vector<Atom> &atoms, double _mass) {
 double Box::computeDistance(Atom &atom1, Atom &atom2) {
  
     double dx, dy, dz;
-    double dxm, dym, dzm;
-
+    double dxm = 0.0;
+    double dym = 0.0;
+    double dzm = 0.0;
+    double ret;
+    double boxlenhalf = 0.5 * x_dim;
     // get the coords of the atoms
     std::vector<double> coords1 = atom1.getCoordinates();
     std::vector<double> coords2 = atom2.getCoordinates();
@@ -87,6 +91,21 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     dy = coords1[1] - coords2[1];
     dz = coords1[2] - coords2[2];
 
+    if (dx > boxlenhalf) dxm = dxm - x_dim;
+    if (dx < -boxlenhalf) dxm = dxm + x_dim;
+    if (dy > boxlenhalf) dym = dym - y_dim;
+    if (dy < -boxlenhalf) dym = dym + y_dim;
+    if (dz > boxlenhalf) dzm = dzm - z_dim;
+    if (dz < -boxlenhalf) dzm = dzm + z_dim;
+
+    dx += dxm;
+    dy += dym;
+    dz += dzm;
+
+    // TODO: should this be divided by sigma?
+    ret = (sqrt(dx*dx + dy*dy + dz*dz) / sigma);
+
+    /*
     // get the minimum image dx, dy, dz
     dxm = fabs(fabs(dx) - x_dim);
     dxm = std::min(fabs(dx), dxm);
@@ -97,8 +116,9 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     dzm = fabs(fabs(dz) - z_dim);
     dzm = std::min(fabs(dz), dzm);
 
+    */
     // return the distance
-    return sqrt(dxm*dxm + dym*dym + dzm*dzm);
+    return ret;
 
 };
 

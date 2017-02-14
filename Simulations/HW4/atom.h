@@ -39,7 +39,7 @@ class Atom {
         // set the coordinates (for initializations)
         void setCoordinates(double _x, double _y, double _z);
         std::vector<double> getCoordinates();
-        void addCoordinates(std::vector<double> _xs);
+        void addCoordinates(std::vector<double> &_xs);
      
         // populates xs_init vector
         void setInitCoordinates();
@@ -50,12 +50,12 @@ class Atom {
         // add the forces that were calculated to the tally
         void resetForces();
         std::vector<double> getForces();
-        void addForce(double, double, double);
+        void addForce(double &, double &, double &);
 
         // set the velocities (for initializations)
         void setVelocities(double _vx, double _vy, double _vz);
         std::vector<double> getVelocities();
-        void addVelocities(std::vector<double> _vs);
+        void addVelocities(std::vector<double> &_vs);
 
 
         void setMass(double _mass);
