@@ -223,13 +223,13 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         // full step positions update
         // --note: apply PBC's within this for each atom as it is translated!
         positionStep();
-        
+        /*
         if (!(production)) {
             if (i%velScaleEvery == 0 && (i != 0)) {
                 rescaleVelocities();
             }
         }
-        
+        */
         // zero the fs vector for each atom
         zeroForces();
 
