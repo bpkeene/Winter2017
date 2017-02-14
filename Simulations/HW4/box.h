@@ -21,11 +21,18 @@ class Box {
         // our constructor
         Box(int nAtoms, double rhoStar, double sigma);
         
-        void initializeAtoms(std::vector<Atom> &, std::vector< std::vector<double> > &);
+        void initializeAtoms(std::vector<Atom> &, double);
 
+        // get the minimum image distance between two atoms
         double computeDistance(Atom &, Atom &);
+
+        // calculate the absolute distance ( (delta r) ^ 2) traveled from the initial position
+        double computeAbsoluteDistanceTraveled(Atom &);
+
         std::vector<double> getDim();
+
         double getVolume();
+
         void enforcePBC(Atom &);
 };
 

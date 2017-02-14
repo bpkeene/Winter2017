@@ -4,8 +4,7 @@
 #include <vector>
 
 class Atom {
-    public:
-
+    private:
         // every LJ atom will have a sigma, epsilon, and tuple of coordinates;
         double sigma;
         double epsilon;
@@ -26,6 +25,7 @@ class Atom {
         // in the x, y, z direction traveled since  beginning of the simulation
         std::vector<double> boxesTraveled;       
         
+    public:
         // just use a default constructor
         Atom();
         
@@ -38,33 +38,30 @@ class Atom {
 
         // set the coordinates (for initializations)
         void setCoordinates(double _x, double _y, double _z);
+        std::vector<double> getCoordinates();
+        void addCoordinates(std::vector<double> _xs);
      
         // populates xs_init vector
         void setInitCoordinates();
+        std::vector<double> getInitCoordinates();
 
         // during the middle of an integration step, we want to reset the forces;
-        void resetForces();
 
         // add the forces that were calculated to the tally
-        void addForce(std::vector<double> _fs);
+        void resetForces();
+        std::vector<double> getForces();
+        void addForce(double, double, double);
 
         // set the velocities (for initializations)
         void setVelocities(double _vx, double _vy, double _vz);
-
+        std::vector<double> getVelocities();
         void addVelocities(std::vector<double> _vs);
 
-        void addCoordinates(std::vector<double> _xs);
-
-        // get the coordinates
-        std::vector<double> getCoordinates();
-
-        // get the velocities
-        std::vector<double> getVelocities();
-
-        // get the forces
-        std::vector<double> getForces();
 
         void setMass(double _mass);
+
+        std::vector<double> getBoxesTraveled();
+        void addBoxesTraveled(double, double, double);
 };
 
 

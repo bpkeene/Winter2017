@@ -19,14 +19,15 @@ class Simulation {
     private:
         int numberOfAtoms;
 
-        double mass;
+        double density;
         double dt; // our integration timestep
         double dt2m; // dt/2m, used in integrating our velocities
+        double mass;
         double dt2; // dt/2, used in integrating our positions
-        double density;
         double sigma; // put these in the atoms class later
         double sig3;
         double sig6;
+        double sig9;
         double sig12;
 
         double epsilon; // put this in the atoms class later
@@ -44,10 +45,12 @@ class Simulation {
 
         std::string name;
        
+        // should be length..
         std::vector<double> deltaR2; // for calculating the diffusionCoeff;
-
+        std::vector<double> ensembleAvgDiffusion;
+        
         double totalPE; // our total potential energy within the system
-        double totalKE; // total kinetic energy (3/2 * N k T)
+        double totalKE; // 1/2 m v^2
         double totalKE_n; // same quantity, but 3/2 k T
 
         // we'll have a box of type box
@@ -59,12 +62,14 @@ class Simulation {
         RanMars *prng;
 
         void ComputeTotalPotentialEnergy();
-        
+       
+        void ComputeTotalKineticEnergy();
+
         double LJPotential(int, int);
         
         void LJForce(int, int);
 
-        void ComputeTotalForce();
+        //void ComputeTotalForce();
 
         double ComputeAtomPotential(int);
    
@@ -76,7 +81,7 @@ class Simulation {
 
         void calculateForces();
 
-        void calculateAvgDeltaR2();
+        void calculateAvgDeltaR2(int);
 
     public:
 

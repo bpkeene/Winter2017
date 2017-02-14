@@ -99,6 +99,9 @@ int main(int argc, char *argv[]) {
     simulation.printConfig(simulationName, 0);
     
     bool isProduction = false;
+
+    //TODO alert: melding equilibration and production
+    equilibration += production;
     // run the equilibration steps
     simulation.run(equilibration,printXYZ,isProduction);
     
@@ -106,12 +109,12 @@ int main(int argc, char *argv[]) {
     std::cout << "completed equilibration!" << std::endl;
     
     // run the production steps
-    simulation.run(production,printXYZ,isProduction);
+    //simulation.run(production,printXYZ,isProduction);
     
     simulation.printConfig(simulationName,production);
 
     return 0;
-};
+}
 
 
 

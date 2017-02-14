@@ -8,8 +8,8 @@ OBJS = main.o simulation.o box.o atom.o \
 
 CC = g++
 DEBUG = -g
-CFLAGS = -Wall -c $(DEBUG)
-LFLAGS = -Wall $(DEBUG)
+CFLAGS = -Wall -Wpedantic -c $(DEBUG)
+LFLAGS = -Wall -Wpedantic $(DEBUG)
 
 MolecularDynamics : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o MolecularDynamics
@@ -32,4 +32,4 @@ random_mars.o: random_mars.h
 
 
 clean: 
-	rm -f *.o *.xyz *~ MolecularDynamics
+	rm -f *.o *.dat *.xyz *~ MolecularDynamics

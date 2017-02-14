@@ -11,7 +11,9 @@ Atom::Atom() {
 
     vs = std::vector<double> (3, 0.0);
 
-    boxesTraveled = std::vector<double> (3, 0);
+    boxesTraveled = std::vector<double> (3, 0.0);
+
+    xs_init = std::vector<double> (3, 0.0);
 };
 
 void Atom::setMass(double _mass) {
@@ -33,6 +35,9 @@ void Atom::setCoordinates(double _x, double _y, double _z) {
 void Atom::setInitCoordinates() {
     xs_init = xs;
 };
+std::vector<double> Atom::getInitCoordinates() {
+    return xs_init;
+};
 
 void Atom::addCoordinates(std::vector<double> _xs) {
     xs[0] += _xs[0];
@@ -48,27 +53,43 @@ double Atom::getEpsilon() {
 };
 
 void Atom::resetForces() {
-    fs = std::vector<double (3, 0.0);
+    fs = std::vector<double> (3, 0.0);
 };
 
-void Atom::addForce(std::vector<double> _fs) {
-    fs[0] += _fs[0];
-    fs[1] += _fs[1];
-    fs[2] += _fs[2];
+void Atom::addForce(double fsx, double fsy, double fsz) {
+    fs[0] += fsx;
+    fs[1] += fsy;
+    fs[2] += fsz;
 };
 
+std::vector<double> Atom::getForces() {
+    return fs;
+};
 void Atom::addVelocities(std::vector<double> _vs) {
     vs[0] += _vs[0];
     vs[1] += _vs[1];
     vs[2] += _vs[2];
 };
 
-void Atom::setVelocities(std::vector<double> _vs) {
-    vs[0] = _vs[0];
-    vs[1] = _vs[1];
-    vs[2] = _vs[2];
+void Atom::setVelocities(double _vx,double _vy,double _vz) {
+    vs[0] = _vx;
+    vs[1] = _vy;
+    vs[2] = _vz;
 };
 
+std::vector<double> Atom::getVelocities() {
+    return vs;
+};
+
+std::vector<double> Atom::getBoxesTraveled() {
+    return boxesTraveled;
+};
+
+void Atom::addBoxesTraveled(double _x, double _y, double _z) {
+    boxesTraveled[0] += _x;
+    boxesTraveled[1] += _y;
+    boxesTraveled[2] += _z;
+};
 
 std::vector<double> Atom::getCoordinates() {
     return xs;

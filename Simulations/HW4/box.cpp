@@ -21,7 +21,7 @@ Box::Box(int nAtoms, double rhoStar, double sigma) {
     dimensions[2] = z_dim;
 }
 
-void Box::initializeAtoms(std::vector<Atom> &atoms) {
+void Box::initializeAtoms(std::vector<Atom> &atoms, double _mass) {
 
     double increment;
     double initial_x_pos, initial_y_pos, initial_z_pos;
@@ -61,6 +61,7 @@ void Box::initializeAtoms(std::vector<Atom> &atoms) {
                 if (atomIndex < numberOfAtoms) {
                     atoms[atomIndex].setCoordinates(xpos,ypos,zpos);
                     atoms[atomIndex].setInitCoordinates();
+                    atoms[atomIndex].setMass(_mass);
                     xpos += increment;
                     atomIndex++;
                 } else {
@@ -102,48 +103,48 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
 };
 
 void Box::enforcePBC(Atom &atom) {
-    std::vector<double> coords = atom.getCoordinates();
-    
+    std::vector<double> theseCoords = atom.getCoordinates();
+    std::vector<double> boxesTraveled = std::vector<double> (3, 0.0);
     // apply PBC
-    if (coords[0] < 0.0) {
-        coords[0] += x_dim;
-        atom.boxesTraveled[0] -= 1.0;
+    if (theseCoords[0] < 0.0) {
+        theseCoords[0] += x_dim;
+        boxesTraveled[0] -= 1.0;
     };
-    if (coords[0] > x_dim) {
-        coords[0] -= x_dim;
-        atom.boxesTraveled[0] += 1.0;
+    if (theseCoords[0] > x_dim) {
+        theseCoords[0] -= x_dim;
+        boxesTraveled[0] += 1.0;
     };
-    if (coords[1] <0.0) {
-        coords[1] += y_dim;
-        atom.boxesTraveled[1] -= 1.0;
+    if (theseCoords[1] <0.0) {
+        theseCoords[1] += y_dim;
+        boxesTraveled[1] -= 1.0;
     };
-    if (coords[1] > y_dim) {
-        coords[1] -= y_dim;
-        atom.boxesTraveled[1] += 1.0;
+    if (theseCoords[1] > y_dim) {
+        theseCoords[1] -= y_dim;
+        boxesTraveled[1] += 1.0;
     };
-    if (coords[2] < 0.0) {
-        coords[2] += z_dim;
-        atom.boxesTraveled[2] -= 1.0;
+    if (theseCoords[2] < 0.0) {
+        theseCoords[2] += z_dim;
+        boxesTraveled[2] -= 1.0;
     };
-    if (coords[2] > z_dim) {
-        coords[2] -= z_dim;
-        atom.boxesTraveled[2] += 1.0;
+    if (theseCoords[2] > z_dim) {
+        theseCoords[2] -= z_dim;
+        boxesTraveled[2] += 1.0;
     };
 
     // could probably make it so that setCoordinates takes a vector.. but eh
-    atom.setCoordinates(coords[0], coords[1], coords[2]);
-
+    atom.setCoordinates(theseCoords[0], theseCoords[1], theseCoords[2]);
+    atom.addBoxesTraveled(boxesTraveled[0], boxesTraveled[1], boxesTraveled[2]);
 };
 
-double Box::computeAbsoluteDistance(Atom &atom) {
+double Box::computeAbsoluteDistanceTraveled(Atom &atom) {
     // compute the absolute distance a particle has traversed, unwrapping the PBC
     std::vector<double> coords = atom.getCoordinates();
 
     // copy the initial values, so we don't overwrite them
-    std::vector<double> coords_init = atom.xs_init;
+    std::vector<double> coords_init = atom.getInitCoordinates();
 
     // and finally, copy the boxes traveled vector;
-    std::vector<double> boxes = atom.boxesTraveled;
+    std::vector<double> boxes = atom.getBoxesTraveled();
 
     double deltar2;
     double dx, dy, dz;
