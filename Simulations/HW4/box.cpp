@@ -25,7 +25,7 @@ Box::Box(int nAtoms, double rhoStar, double _sigma) {
 void Box::initializeAtoms(std::vector<Atom> &atoms, double _mass) {
 
     double increment;
-    double initial_x_pos, initial_y_pos, initial_z_pos;
+    //double initial_x_pos, initial_y_pos, initial_z_pos;
     double xpos, ypos, zpos;
 
     // cast number of atoms as double
@@ -45,22 +45,28 @@ void Box::initializeAtoms(std::vector<Atom> &atoms, double _mass) {
     int atomsPerLength = lrint(atomsPerLengthD);
 
     // we evenly distribute the atoms on a cubic lattice;
-    initial_x_pos = 0.0;
-    initial_y_pos = 0.0;
-    initial_z_pos = 0.0;
+    //initial_x_pos = 0.0;
+    //initial_y_pos = 0.0;
+    //initial_z_pos = 0.0;
 
     xpos = ypos = zpos = 0.0;
 
     int atomIndex = 0;
     int numberOfAtoms = (int) atoms.size();
-    for (int i = 0; i < atomsPerLength; i++) {
-        zpos = initial_z_pos + i * increment;
-        for (int j = 0; j < atomsPerLength; j++) {
-            ypos = initial_y_pos + j * increment;
-            xpos = initial_x_pos;
-            for (int k = 0; k < atomsPerLength; k++) {
+    double boxLen = x_dim;
+    double numPerDim = (double) atomsPerLength;
+    std::cout << "about to initialize the atoms!" << std::endl;
+    for (int ix = 0; ix < atomsPerLength; ix++) {
+        //zpos = initial_z_pos + i * increment;
+        for (int iy = 0; iy < atomsPerLength; iy++) {
+            //ypos = initial_y_pos + j * increment;
+            //xpos = initial_x_pos;
+            for (int iz = 0; iz < atomsPerLength; iz++) {
                 if (atomIndex < numberOfAtoms) {
-                    atoms[atomIndex].setCoordinates(xpos,ypos,zpos);
+                    double x = (ix + 0.5) * boxLen / numPerDim;
+                    double y = (iy + 0.5) * boxLen / numPerDim;
+                    double z = (iz + 0.5) * boxLen / numPerDim;
+                    atoms[atomIndex].setCoordinates(x,y,z);
                     atoms[atomIndex].setInitCoordinates();
                     atoms[atomIndex].setMass(_mass);
                     xpos += increment;
@@ -103,7 +109,7 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     dz += dzm;
 
     // TODO: should this be divided by sigma?
-    ret = (sqrt(dx*dx + dy*dy + dz*dz));
+    ret = (sqrt((dx*dx) + (dy*dy) + (dz*dz)));
 
     /*
     // get the minimum image dx, dy, dz

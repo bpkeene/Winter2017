@@ -45,7 +45,6 @@ void Simulation::initializeAtomsPositions() {
 
     // and tell box to place the atoms in the box & compute distances subject to the geometry
     box->initializeAtoms(atoms,mass);
-
 } 
 
 void Simulation::initializeAtomsVelocities() {
@@ -63,7 +62,7 @@ void Simulation::initializeAtomsVelocities() {
     double massTemporary = (double) mass;
 
     // our BoxMullerConstant, to be used in generating the velocities corresponding to our T*
-    double BoxMullerConstant = sqrt(epsilon * Tstar / massTemporary);
+    //double BoxMullerConstant = sqrt(epsilon * Tstar / massTemporary);
     
     px = py = pz = 0.0;
 
@@ -71,9 +70,9 @@ void Simulation::initializeAtomsVelocities() {
     for (int i = 0; i < (int) atoms.size(); i++) {
         Atom &a = atoms[i];
         // we need to sample from the proper distribution here corresponding to our T*...
-        vx = prng->gaussian() * BoxMullerConstant;
-        vy = prng->gaussian() * BoxMullerConstant;
-        vz = prng->gaussian() * BoxMullerConstant;
+        vx = prng->gaussian() * Tstar;
+        vy = prng->gaussian() * Tstar;
+        vz = prng->gaussian() * Tstar;
         a.setVelocities(vx,vy,vz);
         theseVels = a.getVelocities();
         px += (theseVels[0] );
@@ -86,6 +85,8 @@ void Simulation::initializeAtomsVelocities() {
     pz /= nAtoms;
 
 
+    double sumvSqr = 0.0;
+
     for (int k = 0; k < (int) atoms.size(); k++) {
         Atom &b = atoms[k];
         theseVels = b.getVelocities();
@@ -93,7 +94,22 @@ void Simulation::initializeAtomsVelocities() {
         theseVels[1] -= (py );
         theseVels[2] -= (pz );
         b.setVelocities(theseVels[0], theseVels[1], theseVels[2]);
+        sumvSqr += 2.0 * (massTemporary * 0.5 * ( (theseVels[0] * theseVels[0]) + 
+                                                  (theseVels[1] * theseVels[1]) + 
+                                                  (theseVels[2] * theseVels[2])));
     };
+
+    sumvSqr /= nAtoms;
+    
+    for (int m = 0; m < (int) atoms.size(); m++) {
+        Atom &d = atoms[m];
+        theseVels = d.getVelocities();
+        theseVels[0] *= sqrt(3.0 * Tstar / sumvSqr);
+        theseVels[1] *= sqrt(3.0 * Tstar / sumvSqr);
+        theseVels[2] *= sqrt(3.0 * Tstar / sumvSqr);
+        d.setVelocities(theseVels[0], theseVels[1], theseVels[2]);
+    }
+
 
     // and finally, verify that our total momentum is now zero in the three directions
     px = py = pz = 0.0;
@@ -115,7 +131,7 @@ void Simulation::initializeAtomsVelocities() {
 // and a bool parameter denoting whether or not we are running production
 void Simulation::run(int nsteps, int printXYZ, bool production) {
     
-    std::cout << "made it here" << std::endl;
+    //std::cout << "made it here" << std::endl;
     std::ostringstream stringStream;
     stringStream.flush();
     stringStream.str("");
@@ -145,10 +161,11 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
     ComputeTotalPotentialEnergy();
 
     // we are initializing the simulation; get the current force on each atom
-    zeroForces();
+    //zeroForces();
 
     //ComputeTotalForce();
 
+    // have this call 'zeroForces' first
     calculateForces();
     // if we are doing our equilibration, we can now write the forces data to file
     // -- note that we expect the net force on each atom to be zero
@@ -167,8 +184,12 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
             forcesToPrint = atoms[ijk].getForces();
             velsToPrint = atoms[ijk].getVelocities();
             initForcesFile << ijk << "      " << forcesToPrint[0] << "      " << forcesToPrint[1] << "      " 
-                << forcesToPrint[2] << "      " << velsToPrint[0] << "      " << velsToPrint[1]   << "      " 
+                << forcesToPrint[2] << std::endl;
+                
+                /*
+                "      " << velsToPrint[0] << "      " << velsToPrint[1]   << "      " 
                 << velsToPrint[2] << std::endl;
+                */
         };
     };
 
@@ -184,7 +205,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
     for (int i = 0; i < nsteps; i++) {
         // let's just put all the simulation into one 'run' call for now
 
-        if (i > 200000) {
+        if (i > 2000) {
             production = true;
         };
         /* Velocity-Verlet Integrator
@@ -202,12 +223,13 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         // full step positions update
         // --note: apply PBC's within this for each atom as it is translated!
         positionStep();
-
+        
         if (!(production)) {
             if (i%velScaleEvery == 0 && (i != 0)) {
                 rescaleVelocities();
             }
         }
+        
         // zero the fs vector for each atom
         zeroForces();
 
@@ -222,7 +244,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
 
         ComputeTotalPotentialEnergy();
         
-        std::cout << "Potential Energy at step " << i << " is " << totalPE << std::endl;
+        //std::cout << "Potential Energy at step " << i << " is " << totalPE << std::endl;
 
         ComputeTotalKineticEnergy();
         // if we are at the end of printEvery during a production cycle, do stuff:
@@ -327,7 +349,9 @@ void Simulation::ComputeTotalKineticEnergy() {
     std::vector<double> vels;
     for (int i = 0; i < (int) atoms.size(); i++) {
         vels = atoms[i].getVelocities();
-        thisSum += ((1.0 / 2.0) * (mass) * ((vels[0] * vels[0]) + (vels[1] * vels[1]) + (vels[2] * vels[2])) );
+        thisSum += ((1.0 / 2.0) * (mass) * ((vels[0] * vels[0]) + 
+                                            (vels[1] * vels[1]) + 
+                                            (vels[2] * vels[2])) );
     };
     totalKE = thisSum;
 }
@@ -335,17 +359,26 @@ void Simulation::ComputeTotalKineticEnergy() {
 void Simulation::zeroForces() {
     // set the fs vector to (0.0, 0.0, 0.0) for all atoms in simulation
     for (int i = 0; i < (int) atoms.size(); i++) {
-        atoms[i].resetForces();
+        Atom &a = atoms[i];
+        a.resetForces();
     };
 }
 
 // update fs vector for each atom
 void Simulation::calculateForces() {
-    for (int i = 0; i < ((int) atoms.size() - 1); i++) {
+    zeroForces();
+    double thisForce = 0.0;
+    double distance = 0.0;
+    for (int i = 0; i < (int) (atoms.size() - 1) ; i++) {
+        Atom &a = atoms[i];
         for (int j = i+1; j < (int) atoms.size(); j++) {
-            LJForce(i,j);
+            Atom &b = atoms[j];
+            distance = box->computeDistance(a,b);
+            thisForce = LJForce(a,b);
+            //std::cout << "atoms " << i << " and " << j << " dist " << distance << " force " << thisForce << std::endl;
         };
     };
+  
 }
 
 void Simulation::ComputeTotalPotentialEnergy() {
@@ -394,9 +427,9 @@ double Simulation::LJPotential(int ii,int jj) {
 
         ijEnergy = 4.0 * epsilon * ( sr12 - sr6 ); 
 
-        std::cout << "sig2 " << sig2 << " rij " << rij << " sig2 / rij * rij " << srsq << std::endl;
-        std::cout << "srsq " << srsq << " sr6 " << sr6 << " sr12 " << sr12 << " epsilon " << epsilon << std::endl;
-        std::cout << "atoms " << ii << " and " << jj << " distance " << rij << " potential " << ijEnergy << std::endl;
+        //std::cout << "sig2 " << sig2 << " rij " << rij << " sig2 / rij * rij " << srsq << std::endl;
+        //std::cout << "srsq " << srsq << " sr6 " << sr6 << " sr12 " << sr12 << " epsilon " << epsilon << std::endl;
+        //std::cout << "atoms " << ii << " and " << jj << " distance " << rij << " potential " << ijEnergy << std::endl;
         return ijEnergy;
     } else {
         return 0.0;
@@ -404,24 +437,47 @@ double Simulation::LJPotential(int ii,int jj) {
 
 }
 
-void Simulation::LJForce(int ii, int jj) {
-    Atom &a = atoms[ii];
-    Atom &b = atoms[jj];
+double Simulation::LJForce(Atom &a, Atom &b) {
     double rij = box->computeDistance(a,b);
 
     std::vector<double> force_vec = std::vector<double> (3, 0.0);
     std::vector<double> force_vec_neg = std::vector<double> (3, 0.0);
     // we will need the unit vector
     
+    double dx = 0.0;
+    double dy = 0.0;
+    double dz = 0.0;
+
+    double pbcx, pbcy, pbcz;
+    double boxLen, boxLenHalf;
+    boxLen = pow(box->getVolume(), (1.0 / 3.0) );
+    boxLenHalf = 0.5 * boxLen;
+
     if (rij < rcut) {
         std::vector<double> coords1 = a.getCoordinates();
         std::vector<double> coords2 = b.getCoordinates();
-        std::vector<double> rij_unit_vec = std::vector<double> (3, 0.0);
+        //std::vector<double> rij_unit_vec = std::vector<double> (3, 0.0);
 
         //std::cout << "Atom " << ii << " with coords at " << coords1[0] << " " << coords1[1] << " " << coords1[2] << std::endl;
         
         //std::cout << "Atom " << jj << " with coords at " << coords2[0] << " " << coords2[1] << " " << coords2[2] << std::endl;
-        
+        //get the components of our vector
+        dx = coords1[0] - coords2[0];
+        dy = coords1[1] - coords2[1];
+        dz = coords1[2] - coords2[2];
+
+        // enforce pbc on dx, dy, dz to get correct unit vector distances; otherwise, this distorts the unit vector
+        if (dx > boxLenHalf) pbcx =- boxLen;
+        if (dx < -boxLenHalf) pbcx =+ boxLen;
+        if (dy > boxLenHalf) pbcy =- boxLen;
+        if (dy < -boxLenHalf) pbcy =+ boxLen;
+        if (dz > boxLenHalf) pbcz =- boxLen;
+        if (dz < -boxLenHalf) pbcz =+ boxLen;
+        dx += pbcx;
+        dy += pbcy;
+        dz += pbcz;
+
+        //double drSqr = dx*dx + dy*dy + dz*dz;
         double sr2 = sig2 /  (rij * rij);
         double sr6 = sr2 * sr2 * sr2;
         double sr12 = sr6 * sr6;
@@ -429,35 +485,36 @@ void Simulation::LJForce(int ii, int jj) {
         //std::cout << "Distance calculated to be : " << rij << std::endl;
         // we will calculate the magnitude of the force and dot it with rij_unit_vec
         // to get its directionality
-        rij_unit_vec[0] = (coords2[0] - coords1[0]) / rij;
-        rij_unit_vec[1] = (coords2[1] - coords1[1]) / rij;
-        rij_unit_vec[2] = (coords2[2] - coords1[2]) / rij;
+        //rij_unit_vec[0] = (coords2[0] - coords1[0]) ;
+        //rij_unit_vec[1] = (coords2[1] - coords1[1]) ;
+        //rij_unit_vec[2] = (coords2[2] - coords1[2]) ;
 
         // magnitude of our force from atom i to atom j
-        double ijForce = (24.0 * epsilon / (rij)) * ( (2.0 * sr12) - sr6 ) ;
+        double ijForce = (24.0 * epsilon / (rij*rij)) * ( (2.0 * sr12) - sr6 ) ;
 
         //std::cout << "ijForce calculated to be : " << ijForce << std::endl;
 
-        force_vec[0] = ijForce * rij_unit_vec[0];
-        force_vec[1] = ijForce * rij_unit_vec[1];
-        force_vec[2] = ijForce * rij_unit_vec[2];
+        force_vec[0] = ijForce * dx;
+        force_vec[1] = ijForce * dy;
+        force_vec[2] = ijForce * dz;
 
         force_vec_neg[0] = 0.0 - force_vec[0];
         force_vec_neg[1] = 0.0 - force_vec[1];
         force_vec_neg[2] = 0.0 - force_vec[2];
 
-        b.addForce(force_vec[0], force_vec[1], force_vec[2]);
-        a.addForce(force_vec_neg[0], force_vec_neg[1], force_vec_neg[2]);
+        a.addForce(force_vec[0], force_vec[1], force_vec[2]);
+        b.addForce(force_vec_neg[0], force_vec_neg[1], force_vec_neg[2]);
 
+        return ijForce;
     } else {
         b.addForce(force_vec[0], force_vec[1], force_vec[2]);
         a.addForce(force_vec[0], force_vec[1], force_vec[2]);
 
-        return;
+        return 0.0;
     
     };
     
-    return;
+    return 0.0;
 
 }
 

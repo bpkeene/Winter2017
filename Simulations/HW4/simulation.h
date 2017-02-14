@@ -70,7 +70,7 @@ class Simulation {
 
         double LJPotential(int, int);
         
-        void LJForce(int, int);
+        double LJForce(Atom &, Atom &);
 
         //void ComputeTotalForce();
 

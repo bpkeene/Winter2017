@@ -53,7 +53,9 @@ double Atom::getEpsilon() {
 }
 
 void Atom::resetForces() {
-    fs = std::vector<double> (3, 0.0);
+    fs[0] = 0.0;
+    fs[1] = 0.0;
+    fs[2] = 0.0;
 }
 
 void Atom::addForce(double &fsx, double &fsy, double &fsz) {
