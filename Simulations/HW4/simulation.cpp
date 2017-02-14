@@ -20,6 +20,7 @@ Simulation::Simulation(int _numberOfAtoms, double _density, double _dt, double _
     step = 0;
     
     rcut = 3.0;
+    sig2 = sigma * sigma;
     sig3 = sigma * sigma * sigma;
     sig6 = sig3 * sig3;
     sig9 = sig3 * sig3 * sig3;
@@ -68,12 +69,13 @@ void Simulation::initializeAtomsVelocities() {
 
     std::vector<double> theseVels;
     for (int i = 0; i < (int) atoms.size(); i++) {
+        Atom &a = atoms[i];
         // we need to sample from the proper distribution here corresponding to our T*...
         vx = prng->gaussian() * BoxMullerConstant;
         vy = prng->gaussian() * BoxMullerConstant;
         vz = prng->gaussian() * BoxMullerConstant;
-        atoms[i].setVelocities(vx,vy,vz);
-        theseVels = atoms[i].getVelocities();
+        a.setVelocities(vx,vy,vz);
+        theseVels = a.getVelocities();
         px += (theseVels[0] );
         py += (theseVels[1] );
         pz += (theseVels[2] );
@@ -85,17 +87,19 @@ void Simulation::initializeAtomsVelocities() {
 
 
     for (int k = 0; k < (int) atoms.size(); k++) {
-        theseVels = atoms[k].getVelocities();
+        Atom &b = atoms[k];
+        theseVels = b.getVelocities();
         theseVels[0] -= (px );
         theseVels[1] -= (py );
         theseVels[2] -= (pz );
-        atoms[k].setVelocities(theseVels[0], theseVels[1], theseVels[2]);
+        b.setVelocities(theseVels[0], theseVels[1], theseVels[2]);
     };
 
     // and finally, verify that our total momentum is now zero in the three directions
     px = py = pz = 0.0;
     for (int ijk = 0; ijk < (int) atoms.size(); ijk++) {
-        theseVels = atoms[ijk].getVelocities();
+        Atom &c = atoms[ijk];
+        theseVels = c.getVelocities();
         px += theseVels[0] * massTemporary;
         py += theseVels[1] * massTemporary;
         pz += theseVels[2] * massTemporary;
@@ -122,6 +126,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
     simDataFile << "# format: step  potentialEnergy kineticEnergy totalEnergy" << std::endl;
     total = 0.0;
 
+    int velScaleEvery = 200; // while equilibrating, scale the velocities every so many turns
 
     ensembleAvgDiffusion = std::vector<double> (nsteps, 0.0);
 
@@ -135,11 +140,6 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
 
     msdDataFile << "# format: step meanSquareDisplacement" << std::endl;
 
-
-    //int nAtomsIdx = atoms.size() - 1;
-    //int nAtoms = atoms.size();
-
-    //std::cout << "In run() method; about to call ComputeTotalEnergy() " << std::endl;
     // get the current potential energy of the system; also initializes the tail correction
     
     ComputeTotalPotentialEnergy();
@@ -178,7 +178,7 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
     //std::cout << atoms[215].xs[0] << " " << atoms[215].xs[1] << " " << atoms[215].xs[2] << std::endl;
 
     //std::cout << box->computeDistance(atoms[0],atoms[215]) << std::endl;
-
+    blockSumKinetic = 0.0;
     //exit(1);
 
     for (int i = 0; i < nsteps; i++) {
@@ -203,6 +203,11 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
         // --note: apply PBC's within this for each atom as it is translated!
         positionStep();
 
+        if (!(production)) {
+            if (i%velScaleEvery == 0 && (i != 0)) {
+                rescaleVelocities();
+            }
+        }
         // zero the fs vector for each atom
         zeroForces();
 
@@ -217,9 +222,13 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
 
         ComputeTotalPotentialEnergy();
         
+        std::cout << "Potential Energy at step " << i << " is " << totalPE << std::endl;
+
         ComputeTotalKineticEnergy();
         // if we are at the end of printEvery during a production cycle, do stuff:
-        
+        blockSumKinetic += totalKE;
+
+
         if ( (i % 200) == 0) {
             std::cout << "At step " << i << " with total energy " << (totalPE + totalKE) << std::endl;
             //printConfig(name,i);
@@ -250,15 +259,16 @@ void Simulation::velocityHalfStep() {
     std::vector<double> thisForce; 
     // NOTE: at this point, each atom should know all pairwise forces acting on it;
     // they just need to be integrated s.t. the velocity is modified accordingly
-    for (int i = 0; i < numberOfAtoms; i++) {
-        thisForce = atoms[i].getForces();
+    for (int i = 0; i < (int) atoms.size(); i++) {
+        Atom &thisAtom = atoms[i];
+        thisForce = thisAtom.getForces();
         dv[0] = dt2m * thisForce[0];
         dv[1] = dt2m * thisForce[1];
         dv[2] = dt2m * thisForce[2];
 
-        atoms[i].addVelocities(dv);
+        thisAtom.addVelocities(dv);
     };
-};
+}
 
 void Simulation::positionStep() {
     std::vector<double> vel;
@@ -269,8 +279,9 @@ void Simulation::positionStep() {
     // ALSO, here, we might keep track of the < ( delta r)^2 > quantity;
     // additionally, we would enforce PBC in this function /after/ modifying the position
 
-    for (int i = 0; i < numberOfAtoms; i++) {
-        vel = atoms[i].getVelocities();
+    for (int i = 0; i < (int) atoms.size(); i++) {
+        Atom &thisAtom = atoms[i];
+        vel = thisAtom.getVelocities();
         dx[0] = dt * vel[0];
         dx[1] = dt * vel[1];
         dx[2] = dt * vel[2];
@@ -279,11 +290,27 @@ void Simulation::positionStep() {
 
         deltaR2[i] += dr2;
 
-        atoms[i].addCoordinates(dx);
+        thisAtom.addCoordinates(dx);
 
-        box->enforcePBC(atoms[i]);
+        box->enforcePBC(thisAtom);
     };
-};
+}
+
+void Simulation::rescaleVelocities() {
+    double blockCount = 200.0;
+    double nAtoms = (double) atoms.size();
+    blockSumKinetic /= (blockCount * nAtoms);
+    std::vector<double> theseVels = std::vector<double> (3, 0.0);
+
+    for (int i = 0; i < (int) atoms.size(); i++) {
+        theseVels = atoms[i].getVelocities();
+        theseVels[0] *= (sqrt(3.0 * Tstar / (2.0 * blockSumKinetic)));
+        theseVels[1] *= (sqrt(3.0 * Tstar / (2.0 * blockSumKinetic)));
+        theseVels[2] *= (sqrt(3.0 * Tstar / (2.0 * blockSumKinetic)));
+        atoms[i].setVelocities(theseVels[0],theseVels[1],theseVels[2]);
+    };
+    blockSumKinetic = 0.0;
+}
 
 void Simulation::calculateAvgDeltaR2(int thisStep) {
     // here we get the diffusion coefficient as a function of timestep
@@ -292,7 +319,7 @@ void Simulation::calculateAvgDeltaR2(int thisStep) {
         thisSum += box->computeAbsoluteDistanceTraveled(atoms[i]);
     };
     ensembleAvgDiffusion[thisStep] = thisSum;
-};
+}
 
 void Simulation::ComputeTotalKineticEnergy() {
     double thisSum = 0.0;
@@ -303,29 +330,30 @@ void Simulation::ComputeTotalKineticEnergy() {
         thisSum += ((1.0 / 2.0) * (mass) * ((vels[0] * vels[0]) + (vels[1] * vels[1]) + (vels[2] * vels[2])) );
     };
     totalKE = thisSum;
-};
+}
 
 void Simulation::zeroForces() {
     // set the fs vector to (0.0, 0.0, 0.0) for all atoms in simulation
-    for (int i = 0; i < numberOfAtoms; i++) {
+    for (int i = 0; i < (int) atoms.size(); i++) {
         atoms[i].resetForces();
     };
-};
+}
 
 // update fs vector for each atom
 void Simulation::calculateForces() {
-    for (int i = 0; i < (numberOfAtoms - 1); i++) {
-        for (int j = i+1; j < numberOfAtoms; j++) {
+    for (int i = 0; i < ((int) atoms.size() - 1); i++) {
+        for (int j = i+1; j < (int) atoms.size(); j++) {
             LJForce(i,j);
         };
     };
-};
+}
 
 void Simulation::ComputeTotalPotentialEnergy() {
     // zero our totalPE variable
     totalPE = 0.0;
-    for (int i = 0; i < (numberOfAtoms - 1); i++) {
-        for (int j = i+1; j < (int) numberOfAtoms; j++) {
+    tail = 0.0;
+    for (int i = 0; i < ((int) atoms.size()- 1); i++) {
+        for (int j = i+1; j < (int) atoms.size(); j++) {
             totalPE += LJPotential(i,j);
         };
     };
@@ -335,7 +363,7 @@ void Simulation::ComputeTotalPotentialEnergy() {
     tail = ( (8.0 / 3.0) * M_PI * density) ;
     tail *= ( ( (1.0 / 3.0) * (1.0 / rcut9)) - (1.0 / rcut3));
     totalPE += tail;
-};
+}
 
 /*
 void Simulation::ComputeTotalForce() {
@@ -351,47 +379,52 @@ void Simulation::ComputeTotalForce() {
 };
 */
 double Simulation::LJPotential(int ii,int jj) {
-
-    double rij = box->computeDistance(atoms[ii],atoms[jj]);
+    Atom &a = atoms[ii];
+    Atom &b = atoms[jj];
+    double rij = box->computeDistance(a,b);
     
     if (rij < rcut) {
         // we have global values for sigma, eps, sig6, sig12...
 
         double ijEnergy = 0.0;
 
-        double rijsq = rij * rij;
-        double rij6 = rijsq * rijsq * rijsq;
-        double rij12 = rij6 * rij6;
+        double srsq = sig2 / (rij * rij);
+        double sr6 = srsq * srsq * srsq;
+        double sr12 = sr6 * sr6;
 
-        ijEnergy = 4.0 * epsilon * ( (sig12/rij12) - (sig6/rij6) ); 
+        ijEnergy = 4.0 * epsilon * ( sr12 - sr6 ); 
 
+        std::cout << "sig2 " << sig2 << " rij " << rij << " sig2 / rij * rij " << srsq << std::endl;
+        std::cout << "srsq " << srsq << " sr6 " << sr6 << " sr12 " << sr12 << " epsilon " << epsilon << std::endl;
+        std::cout << "atoms " << ii << " and " << jj << " distance " << rij << " potential " << ijEnergy << std::endl;
         return ijEnergy;
     } else {
         return 0.0;
     };
 
-};
+}
 
 void Simulation::LJForce(int ii, int jj) {
-    
-    double rij = box->computeDistance(atoms[ii],atoms[jj]);
+    Atom &a = atoms[ii];
+    Atom &b = atoms[jj];
+    double rij = box->computeDistance(a,b);
 
     std::vector<double> force_vec = std::vector<double> (3, 0.0);
     std::vector<double> force_vec_neg = std::vector<double> (3, 0.0);
     // we will need the unit vector
     
     if (rij < rcut) {
-        std::vector<double> coords1 = atoms[ii].getCoordinates();
-        std::vector<double> coords2 = atoms[jj].getCoordinates();
+        std::vector<double> coords1 = a.getCoordinates();
+        std::vector<double> coords2 = b.getCoordinates();
         std::vector<double> rij_unit_vec = std::vector<double> (3, 0.0);
 
         //std::cout << "Atom " << ii << " with coords at " << coords1[0] << " " << coords1[1] << " " << coords1[2] << std::endl;
         
         //std::cout << "Atom " << jj << " with coords at " << coords2[0] << " " << coords2[1] << " " << coords2[2] << std::endl;
         
-        double rij3 = rij * rij * rij;
-        double rij6 = rij3 * rij3;
-        double rij12 = rij6 * rij6;
+        double sr2 = sig2 /  (rij * rij);
+        double sr6 = sr2 * sr2 * sr2;
+        double sr12 = sr6 * sr6;
         
         //std::cout << "Distance calculated to be : " << rij << std::endl;
         // we will calculate the magnitude of the force and dot it with rij_unit_vec
@@ -401,7 +434,7 @@ void Simulation::LJForce(int ii, int jj) {
         rij_unit_vec[2] = (coords2[2] - coords1[2]) / rij;
 
         // magnitude of our force from atom i to atom j
-        double ijForce = (24.0 * epsilon / (rij)) * ( 2.0 * (sig12 / rij12) - (sig6 / rij6) ) ;
+        double ijForce = (24.0 * epsilon / (rij)) * ( (2.0 * sr12) - sr6 ) ;
 
         //std::cout << "ijForce calculated to be : " << ijForce << std::endl;
 
@@ -413,12 +446,12 @@ void Simulation::LJForce(int ii, int jj) {
         force_vec_neg[1] = 0.0 - force_vec[1];
         force_vec_neg[2] = 0.0 - force_vec[2];
 
-        atoms[ii].addForce(force_vec[0], force_vec[1], force_vec[2]);
-        atoms[jj].addForce(force_vec_neg[0], force_vec_neg[1], force_vec_neg[2]);
+        b.addForce(force_vec[0], force_vec[1], force_vec[2]);
+        a.addForce(force_vec_neg[0], force_vec_neg[1], force_vec_neg[2]);
 
     } else {
-        atoms[ii].addForce(force_vec[0], force_vec[1], force_vec[2]);
-        atoms[jj].addForce(force_vec[0], force_vec[1], force_vec[2]);
+        b.addForce(force_vec[0], force_vec[1], force_vec[2]);
+        a.addForce(force_vec[0], force_vec[1], force_vec[2]);
 
         return;
     
@@ -426,7 +459,7 @@ void Simulation::LJForce(int ii, int jj) {
     
     return;
 
-};
+}
 
 void Simulation::printConfig(std::string name, int step) {
     std::ostringstream stringStream;
@@ -456,6 +489,6 @@ void Simulation::printConfig(std::string name, int step) {
            // << " " << theseVels[0] << " " << theseVels[1] << " " << theseVels[2] << std::endl;
     };
 
-};
+}
 
 

@@ -25,6 +25,7 @@ class Simulation {
         double mass;
         double dt2; // dt/2, used in integrating our positions
         double sigma; // put these in the atoms class later
+        double sig2;
         double sig3;
         double sig6;
         double sig9;
@@ -41,7 +42,7 @@ class Simulation {
         double rcut; // nominally set to 3 * sigma;
         double rcut3; // rcut ^ 3
         double rcut9; // rcut ^ 9
-        double total; // total number of moves
+        double total; // total number of move
 
         std::string name;
        
@@ -52,7 +53,7 @@ class Simulation {
         double totalPE; // our total potential energy within the system
         double totalKE; // 1/2 m v^2
         double totalKE_n; // same quantity, but 3/2 k T
-
+        double blockSumKinetic;
         // we'll have a box of type box
         Box *box;
 
@@ -64,6 +65,8 @@ class Simulation {
         void ComputeTotalPotentialEnergy();
        
         void ComputeTotalKineticEnergy();
+
+        void rescaleVelocities();
 
         double LJPotential(int, int);
         

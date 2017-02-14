@@ -71,7 +71,7 @@ void Box::initializeAtoms(std::vector<Atom> &atoms, double _mass) {
             };
         };
     };
-};
+}
 
 // for some pair of atoms, compute the distance between their minimum images
 double Box::computeDistance(Atom &atom1, Atom &atom2) {
@@ -120,7 +120,7 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     // return the distance
     return ret;
 
-};
+}
 
 void Box::enforcePBC(Atom &atom) {
     std::vector<double> theseCoords = atom.getCoordinates();
@@ -154,7 +154,7 @@ void Box::enforcePBC(Atom &atom) {
     // could probably make it so that setCoordinates takes a vector.. but eh
     atom.setCoordinates(theseCoords[0], theseCoords[1], theseCoords[2]);
     atom.addBoxesTraveled(boxesTraveled[0], boxesTraveled[1], boxesTraveled[2]);
-};
+}
 
 double Box::computeAbsoluteDistanceTraveled(Atom &atom) {
     // compute the absolute distance a particle has traversed, unwrapping the PBC
@@ -178,15 +178,15 @@ double Box::computeAbsoluteDistanceTraveled(Atom &atom) {
     deltar2 = (dx * dx) + (dy * dy) + (dz * dz);
     return deltar2;
 
-};
+}
 double Box::getVolume() {
     return volume;
-};
+}
 
 
 // return the lengths of the sides of the box
 std::vector<double> Box::getDim() {
     return dimensions;
-};
+}
 
 
