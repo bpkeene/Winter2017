@@ -19,7 +19,7 @@ Simulation::Simulation(int _numberOfAtoms, double _density, double _dt, double _
     box = new Box(numberOfAtoms, density, sigma);
     step = 0;
     
-    rcut = 3.0 * sigma;
+    rcut = 3.0;
     sig3 = sigma * sigma * sigma;
     sig6 = sig3 * sig3;
     sig9 = sig3 * sig3 * sig3;
@@ -224,10 +224,10 @@ void Simulation::run(int nsteps, int printXYZ, bool production) {
             std::cout << "At step " << i << " with total energy " << (totalPE + totalKE) << std::endl;
             //printConfig(name,i);
         };
-        //if ( ( (i % printXYZ ) == 0 ) and (production) ) {
-            std::cout << "At step " << i << " of production." << std::endl;
+        if ( ( (i % printXYZ ) == 0 ) and (production) ) {
+            //std::cout << "At step " << i << " of production." << std::endl;
             printConfig(name,i);           
-        //};
+        };
 
         // output to simData the following quantities each step:
         // step   PE    KE   (totalE)     

@@ -6,7 +6,7 @@
 2.0           // Tstar: dimensionless temperature
 29341332      // seed: seed for Marsaglia PRNG
 0.0005         // timestep: timestep for our simulation
-100        // Equilibration: number of equilibration steps to take
+100000        // Equilibration: number of equilibration steps to take
 10         // Production: number of production steps to take
 500           // PrintXYZ: during production, print XYZ file every (#) of steps
 sim1          // simulation name: name to be prepended to all output files

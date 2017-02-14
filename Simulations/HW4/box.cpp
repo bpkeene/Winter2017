@@ -103,7 +103,7 @@ double Box::computeDistance(Atom &atom1, Atom &atom2) {
     dz += dzm;
 
     // TODO: should this be divided by sigma?
-    ret = (sqrt(dx*dx + dy*dy + dz*dz) / sigma);
+    ret = (sqrt(dx*dx + dy*dy + dz*dz));
 
     /*
     // get the minimum image dx, dy, dz
