@@ -1,0 +1,12 @@
+0.3           // rho: density, reduced
+216           // nAtoms: number of atoms to simulate
+1.0           // mass: mass of our particles
+1.0           // sigma: sigma value for LJ 12-6 potential
+1.0           // epsilon: epsilon value for LJ 12-6 potential
+5.0           // Tstar: dimensionless temperature
+99571332      // seed: seed for Marsaglia PRNG
+0.005         // timestep: timestep for our simulation
+10000       // Equilibration: number of equilibration steps to take
+10000         // Production: number of production steps to take
+500           // PrintXYZ: during production, print XYZ file every (#) of steps
+sim6          // simulation name: name to be prepended to all output files
